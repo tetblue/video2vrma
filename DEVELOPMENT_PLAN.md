@@ -639,27 +639,30 @@ video2vrma/
 
 **任務：**
 
-- [ ] 2.1 研讀 vendor/bvh2vrma/src/ 原始碼
-  - 找到核心轉換函式入口
-  - 理解骨架映射邏輯
-  - 理解 VRMA glTF 組裝方式
-  - 確認它依賴的 npm 套件和版本
-- [ ] 2.2 確認 bvh2vrma 預設支援的 BVH 骨架格式
-  - 跟 Phase 1 記錄的 smpl2bvh 實際輸出骨架名比對
-  - 如果不相容，記錄需要自訂映射的地方
-- [ ] 2.3 決定整合方式（方式 A 直接 import 或方式 B 提取重寫）
-- [ ] 2.4 實作 frontend/src/services/bvhToVrma.ts
-  - 整合 bvh2vrma 核心邏輯
-  - 加入 SMPL 骨架名映射（如果需要）
-- [ ] 2.5 建前端測試頁面（純前端，手動載入 Phase 1 的 BVH）
-- [ ] 2.6 實作 VrmPreview.tsx
-- [ ] 2.7 驗證動畫品質
+- [x] 2.1 研讀 vendor/bvh2vrma/src/ 原始碼
+  - 入口：`convertBVHToVRMAnimation(bvh, options) -> ArrayBuffer`（.vrma 是帶 VRMC_vrm_animation extension 的 glb）
+  - 播放：`@pixiv/three-vrm-animation` 的 `VRMAnimationLoaderPlugin` + `createVRMAnimationClip`
+  - 預設 scale=0.01（BVH cm → VRM m），smpl2bvh 輸出已 ×100 cm 所以用預設即可
+- [x] 2.2 確認 bvh2vrma 預設支援的 BVH 骨架格式
+  - bvh2vrma **沒有 hardcoded map**，用 `mapSkeletonToVRM` 結構啟發式 + 名稱模糊匹配
+  - SMPL 24 joints 經由結構規則（Pelvis 是唯一三叉骨 → hips；Spine1/2/3 → spine/chest/upperChest；longest-bones-by-depth → 四肢）**自動對應成功**
+  - 注意：`Left_palm` / `Right_palm` orphaned（VRM 沒有 palm bone），`toes` 沒有映射，可接受
+- [x] 2.3 整合方式：採方式 B 的 variant — 把 5 個純轉換 TS 檔從 `vendor/bvh2vrma/src/lib/bvh-converter/` 複製到 `frontend/src/lib/bvh2vrma/`
+  - 原因：Next.js 跨目錄 TS 編譯需要 webpack 額外配置且易踩雷，而檔案自成單元（~500 行無外部 deps 除了 three/three-vrm）
+  - vendor-versions.txt 固定 hash，未來 vendor 升版可手動 re-copy
+- [x] 2.4 實作 `frontend/src/services/bvhToVrma.ts`（`bvhTextToVrmaBlob(bvhText, {scale})`，用 three 的 BVHLoader 解析後丟進 convertBVHToVRMAnimation）
+- [x] 2.5 建前端測試頁面 `frontend/src/app/page.tsx`：檔案選擇器 → 自動轉 VRMA → 下載按鈕 + 3D 預覽
+- [x] 2.6 實作 `frontend/src/components/VrmPreview.tsx`：three WebGLRenderer + OrbitControls + VRMLoaderPlugin + VRMAnimationLoaderPlugin，AnimationMixer 播放
+- [ ] 2.7 驗證動畫品質（使用者手動在瀏覽器確認）
   - 手腳交叉 → 骨架映射錯誤
   - 鏡像 → 左右反轉
   - 手臂偏移 → rest pose 補償問題
-- [ ] 2.8 準備預設 VRM 模型
+- [x] 2.8 預設 VRM 模型 `frontend/public/models/default.vrm`（使用者提供 RINDO_Full.vrm 複製過去，52 MB）
 
-**驗收：** 瀏覽器中播放 VRMA 動畫正常，可下載 VRMA
+**驗收：**
+- ✅ `npm run typecheck` 無錯誤
+- ✅ `npm run build` Next.js 端到端編譯成功（/ app route 281 KB first load）
+- ⏳ 使用者手動在 `npm run dev` 起的頁面上傳 `tmp/phase1/dance.bvh` 確認動畫播放正確
 
 ---
 

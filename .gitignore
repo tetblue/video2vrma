@@ -29,7 +29,10 @@ data/smpl/
 vendor/
 
 # 本機模型 cache（PHALP / 4D-Humans / detectron2 的 checkpoint 與權重）
-models/
+/models/
+
+# VRM 模型檔太大且多是使用者自備，不進 git
+*.vrm
 
 # 模型權重 / checkpoint
 *.pt

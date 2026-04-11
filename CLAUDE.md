@@ -91,7 +91,12 @@ video2vrma/
 │   │   ├── preview.py         SMPL 骨架 3D 動畫 GIF + 2D overlay mp4
 │   │   └── pipeline.py        run_e2e 整合
 │   └── scripts/test_e2e.py    端到端 CLI
-├── frontend/                  Next.js（Phase 5 起）
+├── frontend/                  Next.js 13.4 (app router)
+│   ├── src/app/page.tsx       Phase 2 驗證頁：上傳 BVH → 轉 VRMA → 3D 預覽
+│   ├── src/components/VrmPreview.tsx  three + @pixiv/three-vrm 預覽器
+│   ├── src/services/bvhToVrma.ts      bvhText → vrma blob adapter
+│   ├── src/lib/bvh2vrma/      vendor/bvh2vrma/src/lib/bvh-converter 5 檔 copy
+│   └── public/models/default.vrm  預設 VRM 模型
 └── tmp/                       暫存（不進 git）
 ```
 
