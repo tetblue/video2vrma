@@ -36,11 +36,28 @@ def _fastapi_multipart():
     import fastapi, uvicorn, multipart, websockets, scipy
     return f"fastapi={fastapi.__version__} multipart={multipart.__version__}"
 
+def _pytorch3d_cuda():
+    import torch, pytorch3d
+    from pytorch3d.ops import knn_points
+    x = torch.rand(1, 32, 3, device="cuda")
+    _ = knn_points(x, x, K=2)
+    return f"{pytorch3d.__version__} (cuda kernel OK)"
+
+def _detectron2_cuda():
+    import torch, detectron2
+    from detectron2.layers import nms
+    boxes = torch.tensor([[0, 0, 10, 10], [1, 1, 11, 11]], dtype=torch.float32, device="cuda")
+    scores = torch.tensor([0.9, 0.8], device="cuda")
+    _ = nms(boxes, scores, iou_threshold=0.5)
+    return f"{detectron2.__version__} (cuda kernel OK)"
+
 check("torch+cuda", _torch_cuda)
 check("smplx", _smplx)
 check("hmr2", _hmr2)
 check("phalp", _phalp)
 check("fastapi stack", _fastapi_multipart)
+check("pytorch3d", _pytorch3d_cuda)
+check("detectron2", _detectron2_cuda)
 
 if failures:
     print(f"\n{len(failures)} FAILED: {failures}")

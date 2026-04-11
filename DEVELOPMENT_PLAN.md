@@ -560,11 +560,11 @@ video2vrma/
 - [x] 0.2 Clone 所有第三方專案（4d-humans, PHALP, smpl2bvh, bvh2vrma 已存在 vendor/）
   - [x] 0.2.1 產生 vendor-versions.txt 固定 commit hash
 - [x] 0.3 建立 conda 環境 + PyTorch CUDA（aicuda：Python 3.12.11 + torch 2.7.1+cu128，CUDA 測試通過）
-- [x] 0.4 安裝 vendor Python 依賴（安全子集完成，pytorch3d / detectron2 延後）
+- [x] 0.4 安裝 vendor Python 依賴
   - [x] hmr2, phalp, pytorch-lightning 1.9.5, hydra, omegaconf, transformers, opencv, mediapipe, pyrender, trimesh, scipy, chumpy, yacs ✅
   - [x] **smplx** 0.1.28 已裝
-  - [ ] **pytorch3d**：延後至 Phase 1，視 PHALP 最小路徑是否實際需要再處理（sm_120 預編 wheel 風險，見 lesson 0004）
-  - [ ] **detectron2**：延後至 Phase 1，優先嘗試 4D-Humans 原生 ViTDet 路線，避開 Windows 編譯
+  - [x] **pytorch3d** 0.7.9 已裝（從 `git+main` 原始碼編譯；stable 的 pulsar 子模組撞到 CUDA 12.8 libcu++ 新 header，main 已修；sm_120 CUDA kernel 實測可用）
+  - [x] **detectron2** 0.6 已裝（從 `git+main` 原始碼編譯成功，nms CUDA kernel 在 sm_120 實測可用）
 - [x] 0.5 下載 SMPL 模型 → data/smpl/（SMPL_NEUTRAL.npz + m/f/neutral pkl 全部就位）
 - [x] 0.6 安裝後端依賴：fastapi / uvicorn / python-multipart / websockets / scipy 全部就位
 - [x] 0.7 初始化前端 Next.js + three-vrm 套件
