@@ -596,7 +596,7 @@ video2vrma/
   - `smpl2bvh(model_path, poses, output, ...)` 需要 `.pkl` 含 `smpl_poses (N,72) axis-angle, smpl_trans (N,3), smpl_scaling (1,)`
   - smplx.create 要 `<model_path>/smpl/SMPL_NEUTRAL.{pkl,npz}` 巢狀 layout
 - [x] 1.6 PHALP → smpl2bvh 銜接：`extract_longest_track()` 挑最長 track，用 scipy `Rotation.from_matrix().as_rotvec()` 轉 axis-angle
-- [ ] 1.7 用 Blender 驗證 BVH 骨架命名（手動步驟，待 Phase 2 前完成）
+- [x] 1.7 用 Blender 驗證 BVH 骨架命名（使用者手動確認通過，smpl2bvh 24 joints 命名 Pelvis / L_Hip / R_Hip / ... / L_Wrist / R_Wrist / L_Palm / R_Palm 可在 Blender 正常播放）
 
 **Phase 1 環境補丁（關鍵記錄）**
 
@@ -619,7 +619,7 @@ video2vrma/
 - ✅ 產出 `tmp/phase1/dance.bvh`（94KB，24 joints SMPL hierarchy，`Frames: 120`，pose axis-angle abs-mean=0.30）
 - ✅ 產出 `tmp/phase1/dance_skeleton.gif`（~1.6MB，matplotlib 3D，相機座標 Y 反向後正向直立）
 - ✅ 產出 `tmp/phase1/dance_overlay.mp4`（~7.6MB，原始影片上疊骨架 2D joints，用 PHALP `2d_joints` 經 `new_image_size=max(H,W)` 反 padding 還原到原圖 pixel 座標）
-- ⏳ 1.7 Blender 骨架命名驗證待使用者手動跑
+- ✅ 1.7 Blender 骨架命名驗證通過（使用者手動確認）
 
 **模型 cache 本機化（6.4 GB）**
 
