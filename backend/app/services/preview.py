@@ -105,6 +105,22 @@ def render_skeleton_gif(
     return output_gif
 
 
+TRACK_COLORS = [
+    (0, 200, 255),   # orange
+    (255, 100, 0),   # blue
+    (0, 255, 100),   # green
+    (200, 0, 255),   # magenta
+    (255, 255, 0),   # cyan
+    (0, 100, 255),   # red-orange
+    (255, 0, 200),   # purple
+    (100, 255, 200), # light green
+]
+
+
+def _track_color(tid: int) -> tuple[int, int, int]:
+    return TRACK_COLORS[tid % len(TRACK_COLORS)]
+
+
 def render_overlay_video(
     pkl_path: str | Path,
     output_mp4: str | Path,
@@ -117,14 +133,12 @@ def render_overlay_video(
     if not frame_keys:
         raise RuntimeError("empty PHALP pkl")
 
-    # 挑最長 track
     tid_counts: dict[int, int] = {}
     for fk in frame_keys:
         for tid in data[fk].get("tid", []):
             tid_counts[int(tid)] = tid_counts.get(int(tid), 0) + 1
     if not tid_counts:
         raise RuntimeError("no tracks in PHALP pkl")
-    target_tid = max(tid_counts.items(), key=lambda kv: kv[1])[0]
 
     first = data[frame_keys[0]]
     img_h, img_w = first["size"][0]
@@ -147,18 +161,30 @@ def render_overlay_video(
             continue
 
         tids = list(f.get("tid", []))
-        if target_tid in tids:
-            idx = tids.index(target_tid)
-            j2d = np.asarray(f["2d_joints"][idx]).reshape(-1, 2)[:25]
+        joints_list = f.get("2d_joints", [])
+        for idx, tid in enumerate(tids):
+            tid = int(tid)
+            color = _track_color(tid)
+            j2d = np.asarray(joints_list[idx]).reshape(-1, 2)[:25]
             px = j2d[:, 0] * new_size - pad_x
             py = j2d[:, 1] * new_size - pad_y
 
             for a, b in OPENPOSE_BODY25_PAIRS:
                 p1 = (int(px[a]), int(py[a]))
                 p2 = (int(px[b]), int(py[b]))
-                cv2.line(img, p1, p2, (0, 200, 255), 3, lineType=cv2.LINE_AA)
+                cv2.line(img, p1, p2, color, 3, lineType=cv2.LINE_AA)
             for k in range(25):
-                cv2.circle(img, (int(px[k]), int(py[k])), 4, (0, 255, 0), -1, lineType=cv2.LINE_AA)
+                cv2.circle(img, (int(px[k]), int(py[k])), 4, color, -1, lineType=cv2.LINE_AA)
+
+            label = f"ID:{tid}"
+            nose_x, nose_y = int(px[0]), int(py[0])
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            scale = 0.8
+            thickness = 2
+            (tw, th), _ = cv2.getTextSize(label, font, scale, thickness)
+            tx, ty = nose_x - tw // 2, nose_y - 15
+            cv2.rectangle(img, (tx - 2, ty - th - 4), (tx + tw + 2, ty + 4), (0, 0, 0), -1)
+            cv2.putText(img, label, (tx, ty), font, scale, color, thickness, cv2.LINE_AA)
 
         writer.write(img)
 
