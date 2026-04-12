@@ -67,22 +67,26 @@ def _prepopulate_smpl_caches() -> None:
             _convert_py2_smpl_to_py3(src, target)
 
 
-def resolve_phalp_frame_range(end_frame: int | None) -> tuple[int, int]:
-    """把 user-facing 的 end_frame 換成 PHALP 兩個 cfg block 共用的 (start, end)。
+def resolve_phalp_frame_range(
+    start_frame: int | None = None,
+    end_frame: int | None = None,
+) -> tuple[int, int]:
+    """把 user-facing 的 start/end_frame 換成 PHALP 兩個 cfg block 共用的 (start, end)。
 
     PHALP 用 -1 當 sentinel：phalp.start_frame == -1 會直接用整段 frame list
     （見 vendor/PHALP/phalp/trackers/PHALP.py:173），video.end_frame == -1 會
     讓 extract_frames 不卡上限（utils/utils.py:175）。任何 <0 / None 都當作
     「跑整支影片」。
     """
-    if end_frame is None or end_frame < 0:
-        return -1, -1
-    return 0, end_frame
+    start = -1 if (start_frame is None or start_frame <= 0) else start_frame
+    end = -1 if (end_frame is None or end_frame < 0) else end_frame
+    return start, end
 
 
 def run_phalp(
     video_path: str | Path,
     output_dir: str | Path,
+    start_frame: int = -1,
     end_frame: int = -1,
 ) -> Path:
     video_path = Path(video_path).resolve()
@@ -94,17 +98,20 @@ def run_phalp(
     _patch_hmr2_skip_renderer()
     from omegaconf import OmegaConf
 
-    start, end = resolve_phalp_frame_range(end_frame)
+    vid_start, vid_end = resolve_phalp_frame_range(start_frame, end_frame)
 
     cfg = OmegaConf.structured(phalp_demo.Human4DConfig())
     cfg.video.source = video_path.as_posix()
     cfg.video.output_dir = output_dir.as_posix()
     cfg.video.base_path = video_path.parent.as_posix()
     cfg.video.extract_video = True
-    cfg.video.start_frame = start
-    cfg.video.end_frame = end
-    cfg.phalp.start_frame = start
-    cfg.phalp.end_frame = end
+    # video.* 用絕對幀索引控制 extract_frames 提取範圍
+    cfg.video.start_frame = vid_start
+    cfg.video.end_frame = vid_end
+    # phalp.* 設 -1 表示不對提取後的 list 二次裁切
+    # （PHALP.py:173 會用 list slice，若用絕對索引會超出範圍）
+    cfg.phalp.start_frame = -1
+    cfg.phalp.end_frame = -1
     cfg.render.enable = False
     cfg.overwrite = False
     cfg.post_process.apply_smoothing = False

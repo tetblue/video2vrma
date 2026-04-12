@@ -12,7 +12,7 @@ class StubPipeline:
         self.detect_calls: list = []
         self.convert_calls: list = []
 
-    def step1_detect(self, video_path, output_dir, end_frame=-1):
+    def step1_detect(self, video_path, output_dir, start_frame=0, end_frame=-1):
         self.detect_calls.append((str(video_path), str(output_dir)))
         out_dir = Path(output_dir)
         out_dir.mkdir(parents=True, exist_ok=True)

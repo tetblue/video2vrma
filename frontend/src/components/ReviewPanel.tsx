@@ -57,9 +57,13 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
 
   const activeVideoSrc = localUrl ?? videoUrl;
   const isTrimming = !!trim;
-  const isClipping = !trim && !!clip;
   const clipStart = clip?.start ?? 0;
   const clipEnd = clip?.end ?? 0;
+  // 三窗格都有內容時進入完整同步模式（同時仍保留 clip loop）
+  const hasAllPanes = !!overlayUrl && !!vrmaBlob;
+  const isClipping = !trim && !!clip && !hasAllPanes;
+  // 完整同步 + 有 clip 範圍：原始影片需 loop clip，同時 overlay/VRM 也同步
+  const isSyncWithClip = !trim && !!clip && hasAllPanes;
 
   const onVideoLoaded = useCallback(() => {
     const v = videoRef.current;
@@ -70,14 +74,14 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
       setStartTime(0);
       setEndTime(dur);
       setCurrentTime(0);
-    } else if (isClipping) {
+    } else if (isClipping || isSyncWithClip) {
       v.currentTime = clipStart;
       setCurrentTime(clipStart);
     }
-  }, [isTrimming, isClipping, clipStart]);
+  }, [isTrimming, isClipping, isSyncWithClip, clipStart]);
 
   useEffect(() => {
-    if (!isTrimming && !isClipping) return;
+    if (!isTrimming && !isClipping && !isSyncWithClip) return;
     const v = videoRef.current;
     if (!v) return;
     const loopStart = isTrimming ? startTime : clipStart;
@@ -86,12 +90,19 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
       setCurrentTime(v.currentTime);
       if (playing && v.currentTime >= loopEnd) {
         v.currentTime = loopStart;
+        // 同步模式下 overlay / VRM 也要回到開頭
+        if (isSyncWithClip) {
+          if (overlayRef.current) overlayRef.current.currentTime = 0;
+          vrmRef.current?.reset();
+          overlayRef.current?.play();
+          vrmRef.current?.play();
+        }
       }
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [isTrimming, isClipping, playing, startTime, endTime, clipStart, clipEnd]);
+  }, [isTrimming, isClipping, isSyncWithClip, playing, startTime, endTime, clipStart, clipEnd]);
 
   const syncPlay = useCallback(() => {
     if (isTrimming || isClipping) {
@@ -103,13 +114,24 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
         v.currentTime = loopStart;
       }
       v.play();
+    } else if (isSyncWithClip) {
+      // 三窗格同步 + 原始影片 loop clip 範圍
+      const v = videoRef.current;
+      if (v) {
+        if (v.currentTime < clipStart || v.currentTime >= clipEnd) {
+          v.currentTime = clipStart;
+        }
+        v.play();
+      }
+      overlayRef.current?.play();
+      vrmRef.current?.play();
     } else {
       videoRef.current?.play();
       overlayRef.current?.play();
       vrmRef.current?.play();
     }
     setPlaying(true);
-  }, [isTrimming, isClipping, startTime, endTime, clipStart, clipEnd]);
+  }, [isTrimming, isClipping, isSyncWithClip, startTime, endTime, clipStart, clipEnd]);
 
   const syncPause = useCallback(() => {
     videoRef.current?.pause();
@@ -118,10 +140,10 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
       vrmRef.current?.pause();
     }
     setPlaying(false);
-  }, [isTrimming, isClipping]);
+  }, [isTrimming, isClipping, isSyncWithClip]);
 
   const syncReset = useCallback(() => {
-    const resetTo = isTrimming ? startTime : isClipping ? clipStart : 0;
+    const resetTo = isTrimming ? startTime : (isClipping || isSyncWithClip) ? clipStart : 0;
     if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = resetTo;
@@ -134,7 +156,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
       vrmRef.current?.reset();
     }
     setPlaying(false);
-  }, [isTrimming, isClipping, startTime, clipStart]);
+  }, [isTrimming, isClipping, isSyncWithClip, startTime, clipStart]);
 
   const onVideoEnded = useCallback(() => {
     syncPause();
@@ -208,14 +230,14 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
       <div style={{ display: "flex", gap: 4 }}>
         <div style={panelStyle}>
           <div style={labelStyle}>
-            {isClipping ? `轉換片段 ${fmtTime(clipStart)} – ${fmtTime(clipEnd)}` : "原始影片"}
+            {(isClipping || isSyncWithClip) ? `轉換片段 ${fmtTime(clipStart)} – ${fmtTime(clipEnd)}` : "原始影片"}
           </div>
           {activeVideoSrc ? (
             <>
               <video
                 ref={videoRef}
                 src={activeVideoSrc}
-                onLoadedMetadata={isTrimming || isClipping ? onVideoLoaded : undefined}
+                onLoadedMetadata={(isTrimming || isClipping || isSyncWithClip) ? onVideoLoaded : undefined}
                 onEnded={onVideoEnded}
                 preload="auto"
                 playsInline

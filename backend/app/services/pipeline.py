@@ -12,13 +12,14 @@ from .track_extractor import extract_longest_track, extract_track, list_tracks_m
 def step1_detect(
     video_path: str | Path,
     output_dir: str | Path,
+    start_frame: int = 0,
     end_frame: int = DEFAULT_END_FRAME,
 ) -> dict:
     """跑 PHALP，回傳 {pkl, tracks}。overlay 由 gpu_worker 另外呼叫。"""
     video_path = Path(video_path).resolve()
     output_dir = Path(output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    pkl_path = run_phalp(video_path, output_dir / "phalp", end_frame=end_frame)
+    pkl_path = run_phalp(video_path, output_dir / "phalp", start_frame=start_frame, end_frame=end_frame)
     return {"pkl": pkl_path, "tracks": list_tracks_meta(pkl_path)}
 
 
@@ -54,6 +55,7 @@ def step2_convert(
 def run_e2e(
     video_path: str | Path,
     output_dir: str | Path,
+    start_frame: int = 0,
     end_frame: int = DEFAULT_END_FRAME,
     fps: int = DEFAULT_FPS,
     preview: bool = True,
@@ -64,7 +66,7 @@ def run_e2e(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     phalp_out = output_dir / "phalp"
-    pkl_path = run_phalp(video_path, phalp_out, end_frame=end_frame)
+    pkl_path = run_phalp(video_path, phalp_out, start_frame=start_frame, end_frame=end_frame)
 
     pose_aa, _tid = extract_longest_track(pkl_path)
     if smoothing:
