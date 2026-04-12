@@ -22,7 +22,7 @@ def run_e2e(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     phalp_out = output_dir / "phalp"
-    pkl_path = run_phalp(video_path, phalp_out, start_frame=0, end_frame=end_frame)
+    pkl_path = run_phalp(video_path, phalp_out, end_frame=end_frame)
 
     pose_aa, _tid = extract_longest_track(pkl_path)
     if smoothing:

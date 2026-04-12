@@ -14,7 +14,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--video", default="dance.mp4")
     p.add_argument("--output", default="tmp/phase1")
-    p.add_argument("--end-frame", type=int, default=120)
+    p.add_argument("--end-frame", type=int, default=-1, help="-1 表示跑整支影片")
     p.add_argument("--fps", type=int, default=30)
     args = p.parse_args()
 
