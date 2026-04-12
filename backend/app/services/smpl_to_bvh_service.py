@@ -1,11 +1,10 @@
 import pickle
 from pathlib import Path
 
-import joblib
 import numpy as np
-from scipy.spatial.transform import Rotation as R
 
 from . import vendor_paths  # noqa: F401
+from .track_extractor import extract_longest_track
 
 
 def _ensure_smpl_layout(root: Path) -> Path:
@@ -48,49 +47,15 @@ def _ensure_smpl_layout(root: Path) -> Path:
     return root
 
 
-# 把 PHALP 相機座標 (Y down, Z forward) 的 global_orient 轉到 VRM/SMPL
-# 世界座標 (Y up, Z forward)，避免 BVH 載到 three.js / VRM 上出現上下顛倒
-# 與背對相機。只 pre-multiply root 旋轉，body_pose 是相對 parent 的 local
-# 旋轉，不需要額外轉換。
-_R_CAM_TO_VRM = np.diag([1.0, -1.0, -1.0]).astype(np.float32)
-
-
-def extract_longest_track(pkl_path: str | Path) -> tuple[np.ndarray, int]:
-    data = joblib.load(pkl_path)
-    frames = sorted(data.keys())
-
-    tracks: dict[int, list[tuple[int, dict]]] = {}
-    for fi, fname in enumerate(frames):
-        f = data[fname]
-        tids = f.get("tid", [])
-        smpls = f.get("smpl", [])
-        for tid, smpl in zip(tids, smpls):
-            if smpl is None:
-                continue
-            tracks.setdefault(int(tid), []).append((fi, smpl))
-
-    if not tracks:
-        raise RuntimeError("No SMPL tracks found in PHALP output")
-
-    tid, seq = max(tracks.items(), key=lambda kv: len(kv[1]))
-    n = len(seq)
-    pose_aa = np.zeros((n, 24, 3), dtype=np.float32)
-    for k, (_, smpl) in enumerate(seq):
-        go = np.asarray(smpl["global_orient"]).reshape(3, 3)
-        bp = np.asarray(smpl["body_pose"]).reshape(23, 3, 3)
-        go = _R_CAM_TO_VRM @ go  # 相機 → VRM 世界
-        mats = np.concatenate([go[None], bp], axis=0)  # (24, 3, 3)
-        pose_aa[k] = R.from_matrix(mats).as_rotvec().astype(np.float32)
-    return pose_aa, tid
-
-
 def convert_pkl_to_bvh(
     pkl_path: str | Path,
     output_bvh: str | Path,
     smpl_root: str | Path,
     fps: int = 30,
+    pose_aa: np.ndarray | None = None,
 ) -> Path:
-    pose_aa, tid = extract_longest_track(pkl_path)
+    if pose_aa is None:
+        pose_aa, _ = extract_longest_track(pkl_path)
     n = pose_aa.shape[0]
 
     smpl_root = Path(smpl_root).resolve()

@@ -1,13 +1,8 @@
 import os
 import sys
 import types
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
-VENDOR = ROOT / "vendor"
-MODELS = ROOT / "models"
-PROJECT_HOME = MODELS / "_home"
-PROJECT_IOPATH = MODELS / "iopath_cache"
+from app.config import MODELS, PROJECT_HOME, PROJECT_IOPATH, ROOT, VENDOR  # noqa: F401
 
 # 把 PHALP / 4D-Humans / detectron2 的 cache 都指到專案 models/ 下，避免每次
 # 重新下載，也讓模型檔跟專案打包在一起。HOME 的 override 只影響此 python

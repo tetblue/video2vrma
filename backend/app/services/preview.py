@@ -4,7 +4,8 @@ import joblib
 import numpy as np
 
 from . import vendor_paths  # noqa: F401
-from .smpl_to_bvh_service import _ensure_smpl_layout, extract_longest_track
+from .smpl_to_bvh_service import _ensure_smpl_layout
+from .track_extractor import extract_longest_track
 
 SMPL_PARENTS = [
     -1, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8,

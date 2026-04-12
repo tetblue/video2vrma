@@ -672,13 +672,13 @@ video2vrma/
 
 **目標：** 測試腳本拆成正式 service 模組。
 
-- [ ] 3.1 config.py
-- [ ] 3.2 phalp_service.py
-- [ ] 3.3 track_extractor.py
-- [ ] 3.4 smoothing.py
-- [ ] 3.5 smpl_to_bvh_service.py
-- [ ] 3.6 pipeline.py
-- [ ] 3.7 單元測試
+- [x] 3.1 config.py
+- [x] 3.2 phalp_service.py
+- [x] 3.3 track_extractor.py
+- [x] 3.4 smoothing.py
+- [x] 3.5 smpl_to_bvh_service.py
+- [x] 3.6 pipeline.py
+- [x] 3.7 單元測試
 
 **驗收：** pipeline 測試通過
 

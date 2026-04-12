@@ -85,13 +85,18 @@ video2vrma/
 │   ├── _home/.cache/4DHumans/ 4D-Humans hmr2 checkpoint + configs
 │   └── iopath_cache/detectron2/ ViTDet + mask_rcnn 權重（env FVCORE_CACHE）
 ├── backend/                   FastAPI
-│   ├── app/services/          pipeline adapter 層
-│   │   ├── vendor_paths.py    HOME / FVCORE_CACHE override + stub / patch
-│   │   ├── phalp_service.py   PHALP tracker 包裝
-│   │   ├── smpl_to_bvh_service.py  PHALP pkl → BVH
-│   │   ├── preview.py         SMPL 骨架 3D 動畫 GIF + 2D overlay mp4
-│   │   └── pipeline.py        run_e2e 整合
-│   └── scripts/test_e2e.py    端到端 CLI
+│   ├── app/
+│   │   ├── config.py          路徑常數 + 預設參數（FPS / end_frame / smoothing）
+│   │   └── services/          pipeline adapter 層
+│   │       ├── vendor_paths.py        HOME / FVCORE_CACHE override + stub / patch
+│   │       ├── phalp_service.py       PHALP tracker 包裝
+│   │       ├── track_extractor.py     PHALP pkl → pose_aa (n,24,3)，cam→VRM 翻轉
+│   │       ├── smoothing.py           Savitzky-Golay 平滑（rotmat 空間 + SVD 投影）
+│   │       ├── smpl_to_bvh_service.py pose_aa → BVH via smpl2bvh
+│   │       ├── preview.py             骨架 3D GIF + 2D overlay mp4
+│   │       └── pipeline.py            run_e2e 整合
+│   ├── scripts/test_e2e.py    端到端 CLI
+│   └── tests/                 pytest 單元測試
 ├── frontend/                  Next.js 13.4 (app router)
 │   ├── src/app/page.tsx       Phase 2 驗證頁：上傳 BVH → 轉 VRMA → 3D 預覽
 │   ├── src/components/VrmPreview.tsx  three + @pixiv/three-vrm 預覽器
