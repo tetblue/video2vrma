@@ -107,9 +107,17 @@ video2vrma/
 │   ├── pytest.ini             asyncio_mode=auto
 │   └── tests/                 pytest 單元測試（含 FastAPI TestClient + stub pipeline）
 ├── frontend/                  Next.js 13.4 (app router)
-│   ├── src/app/page.tsx       Phase 2 驗證頁：上傳 BVH → 轉 VRMA → 3D 預覽
-│   ├── src/components/VrmPreview.tsx  three + @pixiv/three-vrm 預覽器
-│   ├── src/services/bvhToVrma.ts      bvhText → vrma blob adapter
+│   ├── src/app/page.tsx       Phase 5 完整流程頁：upload → progress → tracks → convert → preview
+│   ├── src/components/
+│   │   ├── VideoUploader.tsx       multipart 上傳 → task_id
+│   │   ├── ProgressDisplay.tsx     5 階段步驟條 + progress bar
+│   │   ├── TrackSelector.tsx       PHALP track 選擇
+│   │   ├── ConversionPanel.tsx     fps + smoothing + 觸發 convert
+│   │   └── VrmPreview.tsx          three + @pixiv/three-vrm 預覽器
+│   ├── src/hooks/useTaskProgress.ts  WebSocket 訂閱 /api/ws/tasks/{id}
+│   ├── src/services/
+│   │   ├── apiClient.ts            fetch wrapper（NEXT_PUBLIC_API_BASE）
+│   │   └── bvhToVrma.ts            bvhText → vrma blob adapter
 │   ├── src/lib/bvh2vrma/      vendor/bvh2vrma/src/lib/bvh-converter 5 檔 copy
 │   └── public/models/default.vrm  預設 VRM 模型
 └── tmp/                       暫存（不進 git）

@@ -702,14 +702,14 @@ video2vrma/
 
 ### Phase 5：前端 UI 開發
 
-- [ ] 5.1 VideoUploader.tsx
-- [ ] 5.2 apiClient.ts
-- [ ] 5.3 useTaskProgress.ts (WebSocket)
-- [ ] 5.4 ProgressDisplay.tsx
-- [ ] 5.5 TrackSelector.tsx
-- [ ] 5.6 ConversionPanel.tsx
-- [ ] 5.7 整合 VrmPreview.tsx
-- [ ] 5.8 頁面佈局和 UX
+- [x] 5.1 VideoUploader.tsx
+- [x] 5.2 apiClient.ts
+- [x] 5.3 useTaskProgress.ts (WebSocket)
+- [x] 5.4 ProgressDisplay.tsx
+- [x] 5.5 TrackSelector.tsx
+- [x] 5.6 ConversionPanel.tsx
+- [x] 5.7 整合 VrmPreview.tsx
+- [x] 5.8 頁面佈局和 UX
 
 **驗收：** 完整使用者流程可走通
 
