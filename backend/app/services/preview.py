@@ -165,4 +165,25 @@ def render_overlay_video(
     writer.release()
     if not output_mp4.exists() or output_mp4.stat().st_size == 0:
         raise RuntimeError(f"overlay video not written: {output_mp4}")
+
+    # cv2 的 mp4v 是 MPEG-4 Part 2，瀏覽器不支援。用 ffmpeg 轉 H.264。
+    h264_path = output_mp4.with_suffix(".h264.mp4")
+    _reencode_h264(output_mp4, h264_path)
+    h264_path.replace(output_mp4)
+
     return output_mp4
+
+
+def _reencode_h264(src: Path, dst: Path) -> None:
+    import subprocess
+    from imageio_ffmpeg import get_ffmpeg_exe
+
+    cmd = [
+        get_ffmpeg_exe(),
+        "-y", "-i", str(src),
+        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+        "-pix_fmt", "yuv420p",
+        "-an",
+        str(dst),
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)

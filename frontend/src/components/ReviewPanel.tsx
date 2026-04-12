@@ -73,6 +73,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl }: Props) {
               ref={videoRef}
               src={videoUrl}
               onEnded={onVideoEnded}
+              preload="auto"
               playsInline
               muted
               style={mediaStyle}
@@ -88,6 +89,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl }: Props) {
             <video
               ref={overlayRef}
               src={overlayUrl}
+              preload="auto"
               playsInline
               muted
               style={mediaStyle}
