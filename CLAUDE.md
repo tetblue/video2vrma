@@ -110,7 +110,8 @@ video2vrma/
 ├── frontend/                  Next.js 13.4 (app router)
 │   ├── src/app/page.tsx       Phase 5 完整流程頁：upload → progress → tracks → convert → preview
 │   ├── src/components/
-│   │   ├── VideoUploader.tsx       multipart 上傳 → task_id
+│   │   ├── VideoUploader.tsx       檔案選擇（不自動上傳）
+│   │   │   ├── VideoTrimmer.tsx       影片預覽 + 時間段 slider + 開始轉換
 │   │   ├── ProgressDisplay.tsx     5 階段步驟條 + progress bar
 │   │   ├── TrackSelector.tsx       PHALP track 選擇
 │   │   ├── ConversionPanel.tsx     fps + smoothing + 觸發 convert
