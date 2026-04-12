@@ -9,6 +9,7 @@ export const API_BASE = RAW_BASE.replace(/\/+$/, "");
 export type TaskStep =
   | "queued"
   | "detecting"
+  | "rendering_overlay"
   | "tracks_ready"
   | "converting"
   | "bvh_ready"

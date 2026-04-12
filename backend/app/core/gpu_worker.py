@@ -67,8 +67,19 @@ class GPUWorker:
         )
         task.pkl_path = str(result["pkl"])
         task.tracks = result["tracks"]
-        if result.get("overlay"):
-            task.overlay_path = str(result["overlay"])
+
+        await self.task_manager.update_progress(
+            task_id, TaskStep.RENDERING_OVERLAY, 0.5, "骨架 overlay 影片產生中…"
+        )
+        if hasattr(self.pipeline, "step1b_overlay"):
+            overlay = await loop.run_in_executor(
+                self.executor,
+                self.pipeline.step1b_overlay,
+                task.pkl_path,
+                out_dir,
+            )
+            task.overlay_path = str(overlay)
+
         await self.task_manager.update_progress(
             task_id,
             TaskStep.TRACKS_READY,

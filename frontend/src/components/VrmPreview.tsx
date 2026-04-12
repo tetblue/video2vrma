@@ -46,8 +46,12 @@ export const VrmPreview = forwardRef<VrmPreviewHandle, Props>(function VrmPrevie
     play() {
       const action = actionRef.current;
       if (action) {
-        action.paused = false;
-        clockRef.current.start();
+        // action.reset() 重新排程 _startTime 到 mixer 當前時間，避免
+        // 累積的 mixer time 讓 action 一開始就跳到結尾。
+        action.reset();
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+        action.play();
       }
     },
     pause() {
@@ -60,8 +64,10 @@ export const VrmPreview = forwardRef<VrmPreviewHandle, Props>(function VrmPrevie
       const action = actionRef.current;
       if (action) {
         action.reset();
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+        action.play();
         action.paused = true;
-        if (mixerRef.current) mixerRef.current.setTime(0);
       }
     },
     getDuration() {

@@ -10,6 +10,7 @@ from typing import Any
 class TaskStep(str, Enum):
     QUEUED = "queued"
     DETECTING = "detecting"
+    RENDERING_OVERLAY = "rendering_overlay"
     TRACKS_READY = "tracks_ready"
     CONVERTING = "converting"
     BVH_READY = "bvh_ready"

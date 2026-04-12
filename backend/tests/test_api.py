@@ -26,6 +26,13 @@ class StubPipeline:
             ],
         }
 
+    def step1b_overlay(self, pkl_path, output_dir):
+        out_dir = Path(output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        overlay = out_dir / "overlay.mp4"
+        overlay.write_bytes(b"fake overlay mp4")
+        return overlay
+
     def step2_convert(self, pkl_path, output_bvh, track_id, fps=30, smoothing=False):
         self.convert_calls.append((str(pkl_path), int(track_id), int(fps), bool(smoothing)))
         bvh = Path(output_bvh)
@@ -120,6 +127,22 @@ def test_tracks_409_before_ready(client_and_stub, tmp_path, monkeypatch):
     tid = tm.create_task("v.mp4")
     r = client.get(f"/api/tasks/{tid}/tracks")
     assert r.status_code == 409
+
+
+def test_video_and_overlay_endpoints(client_and_stub, tmp_path):
+    client, stub = client_and_stub
+    fake_mp4 = tmp_path / "in.mp4"
+    fake_mp4.write_bytes(b"\x00\x00\x00\x18ftypmp42")
+    with fake_mp4.open("rb") as f:
+        task_id = client.post("/api/upload", files={"file": ("in.mp4", f, "video/mp4")}).json()["task_id"]
+    _wait_for(client, task_id, "tracks_ready")
+
+    r = client.get(f"/api/tasks/{task_id}/video")
+    assert r.status_code == 200
+
+    r = client.get(f"/api/tasks/{task_id}/overlay")
+    assert r.status_code == 200
+    assert b"fake overlay mp4" in r.content
 
 
 def test_system_stats(client_and_stub):

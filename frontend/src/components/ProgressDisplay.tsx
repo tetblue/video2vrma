@@ -5,7 +5,8 @@ import { TaskStep } from "@/services/apiClient";
 const STEP_LABELS: Record<TaskStep, string> = {
   queued: "排隊中",
   detecting: "PHALP 偵測中",
-  tracks_ready: "偵測完成，等待選擇 track",
+  rendering_overlay: "骨架 Overlay 產生中",
+  tracks_ready: "等待選擇 track",
   converting: "BVH 轉換中",
   bvh_ready: "BVH 完成",
   error: "錯誤",
@@ -14,6 +15,7 @@ const STEP_LABELS: Record<TaskStep, string> = {
 const STEP_ORDER: TaskStep[] = [
   "queued",
   "detecting",
+  "rendering_overlay",
   "tracks_ready",
   "converting",
   "bvh_ready",

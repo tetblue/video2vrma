@@ -34,7 +34,9 @@ export default function Home() {
   const srcVideoUrl = useMemo(() => (taskId ? videoUrl(taskId) : null), [taskId]);
   const srcOverlayUrl = useMemo(
     () =>
-      taskId && progress.step && !["queued", "detecting"].includes(progress.step)
+      taskId &&
+      progress.step &&
+      !["queued", "detecting", "rendering_overlay"].includes(progress.step)
         ? overlayUrl(taskId)
         : null,
     [taskId, progress.step],
