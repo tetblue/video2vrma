@@ -276,77 +276,88 @@ video2vrma/
 │
 ├── DEVELOPMENT_PLAN.md
 ├── CLAUDE.md
+├── WORKFLOW.md
 ├── vendor-versions.txt
 ├── .gitignore
 │
-├── vendor/                        # 第三方依賴 (全部本地 clone)
-│   ├── 4D-Humans/                 # Python — 後端 import
-│   ├── PHALP/                     # Python — 後端 import
-│   ├── smpl2bvh/                  # Python — 後端 import
-│   └── bvh2vrma/                  # TypeScript — 前端參考原始碼
+├── .claude/                           # Claude Code 配置
+│   ├── settings.json
+│   ├── hooks/                         # 自動守則腳本
+│   ├── commands/                      # slash commands
+│   ├── agents/                        # subagent 定義
+│   └── lessons/                       # 歷史教訓（INDEX.md 自動載入）
+│
+├── scripts/                           # 環境建置 / 診斷腳本
+│   ├── env_check.py
+│   ├── download_hmr2_data.py
+│   ├── migrate_model_cache.py
+│   └── ...（build/verify 腳本）
+│
+├── vendor/                            # 第三方依賴（只讀）
+│   ├── 4d-humans/                     # Python — 後端 import
+│   ├── PHALP/                         # Python — 後端 import
+│   ├── smpl2bvh/                      # Python — 後端 import
+│   └── bvh2vrma/                      # TypeScript — 前端參考原始碼
 │
 ├── data/
-│   └── smpl/
-│       └── basicModel_neutral_lbs_10_207_0_v1.0.0.pkl
+│   └── smpl/                          # SMPL 模型（不進 git）
+│
+├── models/                            # 本機模型 cache（不進 git，~6.4 GB）
+│   ├── _home/.cache/phalp/            # PHALP 權重
+│   ├── _home/.cache/4DHumans/         # HMR2 checkpoint
+│   └── iopath_cache/detectron2/       # ViTDet + mask_rcnn
 │
 ├── backend/
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py
-│   │   ├── config.py
+│   │   ├── main.py                    # create_app + lifespan
+│   │   ├── config.py                  # 路徑常數 + 預設參數
 │   │   ├── routers/
-│   │   │   ├── __init__.py
-│   │   │   ├── upload.py
-│   │   │   └── tasks.py
+│   │   │   ├── upload.py              # POST /api/upload
+│   │   │   ├── tasks.py              # GET status/tracks/download + POST convert + WS
+│   │   │   └── system.py             # GET /api/system/stats
 │   │   ├── services/
-│   │   │   ├── __init__.py
-│   │   │   ├── pipeline.py
-│   │   │   ├── phalp_service.py
-│   │   │   ├── smpl_to_bvh_service.py
-│   │   │   ├── smoothing.py
-│   │   │   └── track_extractor.py
+│   │   │   ├── vendor_paths.py       # env override + stub/patch
+│   │   │   ├── phalp_service.py      # PHALP tracker 包裝
+│   │   │   ├── track_extractor.py    # pkl → pose_aa，cam→VRM 翻轉
+│   │   │   ├── smoothing.py          # Savitzky-Golay 平滑
+│   │   │   ├── smpl_to_bvh_service.py # pose_aa → BVH
+│   │   │   ├── preview.py            # 骨架 3D GIF + 2D overlay mp4（多 track 彩色標註）
+│   │   │   └── pipeline.py           # step1_detect / step1b_overlay / step2_convert
 │   │   ├── core/
-│   │   │   ├── __init__.py
-│   │   │   ├── task_manager.py
-│   │   │   └── gpu_worker.py
+│   │   │   ├── task_manager.py       # TaskState + TaskStep + queue + WS
+│   │   │   └── gpu_worker.py         # 背景 worker
 │   │   └── models/
-│   │       ├── __init__.py
-│   │       └── schemas.py
-│   ├── tests/
+│   │       └── schemas.py            # Pydantic request/response
+│   ├── tests/                         # pytest 單元測試（8 tests）
 │   ├── scripts/
-│   │   └── test_e2e.py
-│   └── requirements.txt
+│   │   └── test_e2e.py               # 端到端 CLI
+│   └── pytest.ini
 │
-├── frontend/
+├── frontend/                          # Next.js 13.4 (app router)
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── page.tsx
+│   │   │   ├── page.tsx              # 完整流程頁
 │   │   │   └── layout.tsx
 │   │   ├── components/
-│   │   │   ├── VideoUploader.tsx
-│   │   │   ├── TrackSelector.tsx
-│   │   │   ├── ProgressDisplay.tsx
-│   │   │   ├── ConversionPanel.tsx
-│   │   │   └── VrmPreview.tsx
+│   │   │   ├── VideoUploader.tsx      # multipart 上傳
+│   │   │   ├── ProgressDisplay.tsx    # 步驟條 + progress bar
+│   │   │   ├── TrackSelector.tsx      # track 選擇
+│   │   │   ├── ConversionPanel.tsx    # fps + smoothing + 轉換
+│   │   │   ├── VrmPreview.tsx         # three + @pixiv/three-vrm 預覽
+│   │   │   ├── ReviewPanel.tsx        # 三欄同步預覽（原始 / overlay / VRM）
+│   │   │   └── SystemStats.tsx        # CPU / GPU / 佇列監控
 │   │   ├── services/
-│   │   │   ├── apiClient.ts
-│   │   │   ├── bvhToVrma.ts       # 核心：從 vendor/bvh2vrma 提取/參考
-│   │   │   └── vrmaExporter.ts
+│   │   │   ├── apiClient.ts           # fetch wrapper
+│   │   │   └── bvhToVrma.ts          # bvhText → vrma blob
 │   │   ├── hooks/
-│   │   │   ├── useTaskProgress.ts
-│   │   │   └── useVrmAnimation.ts
-│   │   └── types/
-│   │       └── index.ts
-│   ├── public/
-│   │   └── models/
-│   │       └── default.vrm
+│   │   │   └── useTaskProgress.ts    # WebSocket 訂閱
+│   │   └── lib/bvh2vrma/             # vendor copy（5 檔）
+│   ├── public/models/default.vrm     # 預設 VRM 模型
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── next.config.js
 │
-└── tmp/
-    ├── uploads/
-    └── outputs/
+└── tmp/                               # 暫存（不進 git）
 ```
 
 ---
@@ -359,24 +370,27 @@ video2vrma/
 |------|------|------|-----------|
 | `/api/upload` | POST | 上傳 MP4 | multipart/form-data → `{ task_id }` |
 | `/api/tasks/{task_id}/status` | GET | 查詢任務狀態 | → `{ status, progress, step, message, error? }` |
-| `/api/tasks/{task_id}/tracks` | GET | 取得人物列表 | → `{ tracks: [{ id, thumbnail_base64, frame_count }] }` |
-| `/api/tasks/{task_id}/convert` | POST | 指定 track 轉 BVH | `{ track_id, fps?, smooth? }` → `{ status }` |
+| `/api/tasks/{task_id}/tracks` | GET | 取得人物列表 | → `{ tracks: [{ track_id, frame_count }] }` |
+| `/api/tasks/{task_id}/convert` | POST | 指定 track 轉 BVH | `{ track_id, fps?, smoothing? }` → `{ status }` |
 | `/api/tasks/{task_id}/download/bvh` | GET | 下載 BVH | → BVH 檔案 |
+| `/api/tasks/{task_id}/video` | GET | 串流原始影片 | → video/mp4 |
+| `/api/tasks/{task_id}/overlay` | GET | 串流骨架 overlay 影片 | → video/mp4（多 track 彩色標註 + ID 標籤） |
+| `/api/system/stats` | GET | 系統狀態 | → `{ cpu_pct, gpu_name, gpu_util_pct, gpu_mem_*, tasks_* }` |
 
 ### WebSocket
 
 | 端點 | 功能 |
 |------|------|
-| `/ws/tasks/{task_id}` | 即時推送處理進度 |
+| `/api/ws/tasks/{task_id}` | 即時推送處理進度 |
 
 ### 任務狀態機
 
 ```
-QUEUED → DETECTING → TRACKS_READY → (等使用者選 track)
-                                         ↓
-                                    CONVERTING → BVH_READY
-                                         ↓
-                                       ERROR (任何階段)
+QUEUED → DETECTING → RENDERING_OVERLAY → TRACKS_READY → (等使用者選 track)
+                                                              ↓
+                                                         CONVERTING → BVH_READY
+                                                              ↓
+                                                            ERROR (任何階段)
 ```
 
 ---
@@ -513,29 +527,18 @@ vendor/bvh2vrma/
 
 ```
 video2vrma/
-├── DEVELOPMENT_PLAN.md        ✅ 已存在（本檔案）
-├── README.md                  ✅ 存在（僅一行）
-├── .git/                      ✅ git 已初始化，主分支 main
-├── data/
-│   └── smpl/                  ✅ 已放入 SMPL 模型
-│       ├── SMPL_NEUTRAL.npz
-│       ├── basicmodel_f_lbs_10_207_0_v1.1.0.pkl
-│       ├── basicmodel_m_lbs_10_207_0_v1.1.0.pkl
-│       └── basicmodel_neutral_lbs_10_207_0_v1.1.0.pkl
+├── DEVELOPMENT_PLAN.md        ✅ 本檔案
+├── CLAUDE.md                  ✅ Claude Code 規範
+├── WORKFLOW.md                ✅ 人類使用說明
+├── vendor-versions.txt        ✅ vendor commit hash 固定
+├── .gitignore                 ✅ 已設定
+├── .claude/                   ✅ hooks / commands / agents / lessons 齊全
+├── data/smpl/                 ✅ SMPL 模型已放入
+├── models/                    ✅ 模型 cache 本機化（~6.4 GB）
 ├── vendor/                    ✅ 四個第三方專案已 clone
-│   ├── 4d-humans/             ✅ hmr2, demo.py, track.py 等齊全
-│   ├── PHALP/                 ✅ phalp/, scripts/
-│   ├── smpl2bvh/              ✅ smpl2bvh.py, utils/
-│   └── bvh2vrma/              ✅ Next.js 13.4 + three 0.153 + @pixiv/three-vrm 2.1
-│                                  src/: features/vrmViewer, lib/VRMAnimation, lib/bvh-converter,
-│                                        pages, components, utils, types, styles
-│
-├── backend/                   ❌ 尚未建立
-├── frontend/                  ❌ 尚未建立
-├── tmp/                       ❌ 尚未建立
-├── CLAUDE.md                  ❌ 尚未建立
-├── vendor-versions.txt        ❌ 尚未建立
-└── .gitignore                 ❌ 尚未建立
+├── backend/                   ✅ FastAPI + services + tests 完成
+├── frontend/                  ✅ Next.js + 完整 UI 完成
+└── tmp/                       ✅ 暫存目錄
 ```
 
 ### 重要發現與需要注意的事項
@@ -715,6 +718,14 @@ video2vrma/
 
 ---
 
+### Phase 5b：追加功能（Phase 5 後持續開發）
+
+- [x] 5b.1 系統狀態監控（CPU / GPU / 佇列）— 後端 `system.py` + 前端 `SystemStats.tsx`
+- [x] 5b.2 BVH / VRMA 分別下載按鈕，進度列顯示處理中影片名稱
+- [x] 5b.3 三欄同步預覽面板 `ReviewPanel.tsx`：原始影片 / 骨架 overlay / VRM 動畫同步播放暫停
+- [x] 5b.4 骨架 overlay 影片：2D overlay mp4 + ffmpeg H.264 重編碼（瀏覽器相容）
+- [x] 5b.5 overlay 影片標示所有 track ID + 不同顏色骨架，方便選擇 track
+
 ### Phase 6：優化與錯誤處理
 
 - [ ] 6.1 錯誤處理
@@ -722,78 +733,21 @@ video2vrma/
 - [ ] 6.3 效能優化
 - [ ] 6.4 輸入驗證
 - [ ] 6.5 日誌
-- [ ] 6.6 佇列狀態顯示
+- [ ] 6.6 佇列狀態顯示（部分已由 5b.1 SystemStats 完成）
 
 ---
 
-## CLAUDE.md
+## CLAUDE.md 概要
 
-```markdown
-# CLAUDE.md
+> 實際 CLAUDE.md 在專案根目錄，以下為概要摘錄。
 
-## 專案簡介
-
-video2vrma：MP4 影片 → 人體動態捕捉 → VRMA 動畫格式的轉換平台。
-
-## 架構
-
-- 後端：FastAPI (Python 3.10)，一個指令啟動，不需要 Redis/Celery
-- 前端：Next.js + TypeScript
-- 第三方依賴：vendor/ 下全部本地 clone，直接 import 或參考原始碼，不使用 CLI
-- 任務管理：記憶體內 asyncio.Queue + ThreadPoolExecutor
-
-## 轉換 Pipeline
-
-MP4 → PHALP (SMPL) → smpl2bvh (BVH) → [回傳前端] → bvh2vrma (VRMA)
-
-## 啟動方式
-
-後端：cd backend && python -m app.main
-前端：cd frontend && npm run dev
-不需要啟動任何額外服務。
-
-## 目錄慣例
-
-- vendor/：第三方專案，不修改原始碼
-  - vendor/4D-Humans, vendor/PHALP, vendor/smpl2bvh → 後端 Python import
-  - vendor/bvh2vrma → 前端參考其 TypeScript 轉換邏輯
-- backend/app/core/：任務管理 (task_manager.py)、GPU worker (gpu_worker.py)
-- backend/app/services/：核心業務邏輯
-- backend/app/routers/：API 端點
-- frontend/src/services/：前端核心邏輯
-  - bvhToVrma.ts：BVH→VRMA 轉換，邏輯來自 vendor/bvh2vrma
-- frontend/src/components/：React 元件
-- data/smpl/：SMPL 模型檔案 (不進 git)
-- tmp/：暫存檔案 (不進 git)
-
-## 後端任務管理
-
-不使用 Redis/Celery。改用：
-- TaskManager：記憶體內 dict 管理任務狀態
-- asyncio.Queue：任務排隊
-- ThreadPoolExecutor(max_workers=1)：GPU 任務在背景線程執行
-- 進度透過 asyncio.run_coroutine_threadsafe 從 GPU 線程回報到 event loop
-- WebSocket 從 event loop 推送給前端
-
-## 程式碼風格
-
-- Python：type hints，docstring 用中文
-- TypeScript：strict mode，所有函式有型別標注
-- 不靜默吞例外，記 log 後向上拋出
-
-## 重要注意事項
-
-1. vendor/ 不修改原始碼，需客製化時：
-   - Python 專案：在 backend/app/services/ 封裝
-   - bvh2vrma：在 frontend/src/services/bvhToVrma.ts 中整合或重寫
-2. PHALP 用 Hydra config，用 OmegaConf.create() 繞過 CLI
-3. GPU 一次只處理一個任務 (ThreadPoolExecutor max_workers=1)
-4. SMPL 模型有授權限制，不進 git
-5. BVH → VRMA 在前端瀏覽器中執行，後端不處理 VRMA
-6. smpl2bvh 輸出的骨架命名要跟前端 SMPL_TO_VRM_BONE_MAP 一致
-7. 服務重啟時任務狀態會遺失（記憶體內），使用者重新上傳即可
-8. bvh2vrma 的 npm 套件版本盡量與我們的 frontend 一致，避免 API 不相容
-```
+- 後端：FastAPI (Python 3.12)，`conda run -n aicuda uvicorn app.main:app`
+- 前端：Next.js 13.4 + TypeScript，`cd frontend && npm run dev`
+- Pipeline：MP4 → PHALP (SMPL) → smpl2bvh (BVH) → [前端] bvh2vrma (VRMA)
+- vendor/ 只讀，客製化在 services 層
+- GPU 一次只處理一個任務（ThreadPoolExecutor max_workers=1）
+- BVH → VRMA 在前端瀏覽器中執行
+- 服務重啟時任務狀態遺失（記憶體內）
 
 ---
 

@@ -94,14 +94,15 @@ video2vrma/
 │   │   ├── models/schemas.py  Pydantic request/response
 │   │   ├── routers/
 │   │   │   ├── upload.py       POST /api/upload
-│   │   │   └── tasks.py        GET status/tracks/download + POST convert + WS
+│   │   │   ├── tasks.py        GET status/tracks/download/video/overlay + POST convert + WS
+│   │   │   └── system.py       GET /api/system/stats（CPU / GPU / 佇列）
 │   │   └── services/          pipeline adapter 層
 │   │       ├── vendor_paths.py        HOME / FVCORE_CACHE override + stub / patch
 │   │       ├── phalp_service.py       PHALP tracker 包裝
 │   │       ├── track_extractor.py     PHALP pkl → pose_aa (n,24,3)，cam→VRM 翻轉
 │   │       ├── smoothing.py           Savitzky-Golay 平滑（rotmat 空間 + SVD 投影）
 │   │       ├── smpl_to_bvh_service.py pose_aa → BVH via smpl2bvh
-│   │       ├── preview.py             骨架 3D GIF + 2D overlay mp4
+│   │       ├── preview.py             骨架 3D GIF + 2D overlay mp4（多 track 彩色 + ID 標籤）
 │   │       └── pipeline.py            run_e2e + step1_detect/step2_convert
 │   ├── scripts/test_e2e.py    端到端 CLI
 │   ├── pytest.ini             asyncio_mode=auto
@@ -113,7 +114,9 @@ video2vrma/
 │   │   ├── ProgressDisplay.tsx     5 階段步驟條 + progress bar
 │   │   ├── TrackSelector.tsx       PHALP track 選擇
 │   │   ├── ConversionPanel.tsx     fps + smoothing + 觸發 convert
-│   │   └── VrmPreview.tsx          three + @pixiv/three-vrm 預覽器
+│   │   ├── VrmPreview.tsx          three + @pixiv/three-vrm 預覽器
+│   │   ├── ReviewPanel.tsx         三欄同步預覽（原始影片 / overlay / VRM）
+│   │   └── SystemStats.tsx         CPU / GPU / 佇列即時監控
 │   ├── src/hooks/useTaskProgress.ts  WebSocket 訂閱 /api/ws/tasks/{id}
 │   ├── src/services/
 │   │   ├── apiClient.ts            fetch wrapper（NEXT_PUBLIC_API_BASE）

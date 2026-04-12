@@ -152,8 +152,9 @@ video2vrma/
 ├── data/
 │   └── smpl/                  SMPL 模型（不進 git）
 │
-├── backend/                   FastAPI 後端（Phase 3 起建立）
-├── frontend/                  Next.js 前端（Phase 5 起建立）
+├── models/                    本機模型 cache（不進 git，~6.4 GB）
+├── backend/                   FastAPI 後端（Phase 1-4 建立，含 services / routers / tests）
+├── frontend/                  Next.js 前端（Phase 2、5 建立，含 7 個元件 + bvh2vrma lib）
 └── tmp/                       暫存 / 上傳 / 輸出（不進 git）
 ```
 
@@ -315,12 +316,14 @@ AI 看見過往教訓，行為調整
 **寫 lesson 的黃金原則**：脫離當前對話也要能讀懂。不要寫「剛剛 X 函式寫錯了」，
 要寫「在 Windows bash 下處理 conda 指令時的通用守則」。
 
-### 本專案初始 lessons
+### 本專案 lessons
 
 - `0001` — conda run 不支援 python -c 多行
 - `0002` — vendor/ 是只讀
 - `0003` — Windows git bash 慣例
 - `0004` — sm_120 wheel 相容性
+- `0005` — vendor/ 只讀時用 sys.modules stub + monkey-patch 繞 import side-effect
+- `0006` — PHALP→BVH→VRMA→VRM 跨階段座標系與 rig 陷阱
 
 詳見 `.claude/lessons/` 各檔。
 
@@ -369,7 +372,7 @@ AI 看見過往教訓，行為調整
 conda run -n aicuda python scripts/env_check.py
 
 # 啟動後端（Phase 4 起可用）
-conda run -n aicuda python -m app.main
+cd backend && conda run -n aicuda uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # 啟動前端（Phase 5 起可用）
 cd frontend && npm run dev
