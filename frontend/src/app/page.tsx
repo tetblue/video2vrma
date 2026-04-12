@@ -22,6 +22,7 @@ import { bvhTextToVrmaBlob } from "@/services/bvhToVrma";
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [clipInfo, setClipInfo] = useState<{ file: File; start: number; end: number } | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [tracks, setTracks] = useState<TrackInfo[] | null>(null);
@@ -46,6 +47,7 @@ export default function Home() {
 
   const onFileSelected = useCallback((file: File) => {
     setSelectedFile(file);
+    setClipInfo(null);
     setTaskId(null);
     setFileName(null);
     setTracks(null);
@@ -59,6 +61,7 @@ export default function Home() {
     async (file: File, startTime: number, endTime: number) => {
       setBusy(true);
       setPageError(null);
+      setClipInfo({ file, start: startTime, end: endTime });
       try {
         const { task_id } = await uploadVideo(file, startTime, endTime);
         setTaskId(task_id);
@@ -153,6 +156,7 @@ export default function Home() {
 
   const onReset = useCallback(() => {
     setSelectedFile(null);
+    setClipInfo(null);
     setTaskId(null);
     setFileName(null);
     setTracks(null);
@@ -252,6 +256,7 @@ export default function Home() {
           vrmaBlob={vrmaBlob}
           vrmUrl="/models/default.vrm"
           trim={trimConfig}
+          clip={clipInfo}
         />
       </section>
 

@@ -17,15 +17,22 @@ type TrimConfig = {
   onStart: (file: File, startTime: number, endTime: number) => void;
 };
 
+type ClipInfo = {
+  file: File;
+  start: number;
+  end: number;
+};
+
 type Props = {
   videoUrl: string | null;
   overlayUrl: string | null;
   vrmaBlob: Blob | null;
   vrmUrl: string;
   trim?: TrimConfig | null;
+  clip?: ClipInfo | null;
 };
 
-export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Props) {
+export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLVideoElement>(null);
   const vrmRef = useRef<VrmPreviewHandle>(null);
@@ -37,9 +44,10 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
   const [currentTime, setCurrentTime] = useState(0);
   const rafRef = useRef<number>(0);
 
+  const localFile = trim?.file ?? clip?.file ?? null;
   const localUrl = useMemo(
-    () => (trim?.file ? URL.createObjectURL(trim.file) : null),
-    [trim?.file],
+    () => (localFile ? URL.createObjectURL(localFile) : null),
+    [localFile],
   );
   useEffect(() => {
     return () => {
@@ -49,38 +57,50 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
 
   const activeVideoSrc = localUrl ?? videoUrl;
   const isTrimming = !!trim;
+  const isClipping = !trim && !!clip;
+  const clipStart = clip?.start ?? 0;
+  const clipEnd = clip?.end ?? 0;
 
   const onVideoLoaded = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
     const dur = v.duration || 0;
     setDuration(dur);
-    setStartTime(0);
-    setEndTime(dur);
-    setCurrentTime(0);
-  }, []);
+    if (isTrimming) {
+      setStartTime(0);
+      setEndTime(dur);
+      setCurrentTime(0);
+    } else if (isClipping) {
+      v.currentTime = clipStart;
+      setCurrentTime(clipStart);
+    }
+  }, [isTrimming, isClipping, clipStart]);
 
   useEffect(() => {
-    if (!isTrimming) return;
+    if (!isTrimming && !isClipping) return;
     const v = videoRef.current;
     if (!v) return;
+    const loopStart = isTrimming ? startTime : clipStart;
+    const loopEnd = isTrimming ? endTime : clipEnd;
     const tick = () => {
       setCurrentTime(v.currentTime);
-      if (playing && v.currentTime >= endTime) {
-        v.currentTime = startTime;
+      if (playing && v.currentTime >= loopEnd) {
+        v.currentTime = loopStart;
       }
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [isTrimming, playing, startTime, endTime]);
+  }, [isTrimming, isClipping, playing, startTime, endTime, clipStart, clipEnd]);
 
   const syncPlay = useCallback(() => {
-    if (isTrimming) {
+    if (isTrimming || isClipping) {
       const v = videoRef.current;
       if (!v) return;
-      if (v.currentTime < startTime || v.currentTime >= endTime) {
-        v.currentTime = startTime;
+      const loopStart = isTrimming ? startTime : clipStart;
+      const loopEnd = isTrimming ? endTime : clipEnd;
+      if (v.currentTime < loopStart || v.currentTime >= loopEnd) {
+        v.currentTime = loopStart;
       }
       v.play();
     } else {
@@ -89,23 +109,24 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
       vrmRef.current?.play();
     }
     setPlaying(true);
-  }, [isTrimming, startTime, endTime]);
+  }, [isTrimming, isClipping, startTime, endTime, clipStart, clipEnd]);
 
   const syncPause = useCallback(() => {
     videoRef.current?.pause();
-    if (!isTrimming) {
+    if (!isTrimming && !isClipping) {
       overlayRef.current?.pause();
       vrmRef.current?.pause();
     }
     setPlaying(false);
-  }, [isTrimming]);
+  }, [isTrimming, isClipping]);
 
   const syncReset = useCallback(() => {
+    const resetTo = isTrimming ? startTime : isClipping ? clipStart : 0;
     if (videoRef.current) {
       videoRef.current.pause();
-      videoRef.current.currentTime = isTrimming ? startTime : 0;
+      videoRef.current.currentTime = resetTo;
     }
-    if (!isTrimming) {
+    if (!isTrimming && !isClipping) {
       if (overlayRef.current) {
         overlayRef.current.pause();
         overlayRef.current.currentTime = 0;
@@ -113,7 +134,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
       vrmRef.current?.reset();
     }
     setPlaying(false);
-  }, [isTrimming, startTime]);
+  }, [isTrimming, isClipping, startTime, clipStart]);
 
   const onVideoEnded = useCallback(() => {
     syncPause();
@@ -158,7 +179,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
           disabled={!hasContent}
           style={ctrlBtnStyle}
         >
-          {playing ? "⏸ 暫停" : isTrimming ? "▶ 預覽片段" : "▶ 同步播放"}
+          {playing ? "⏸ 暫停" : isTrimming || isClipping ? "▶ 預覽片段" : "▶ 同步播放"}
         </button>
         <button onClick={syncReset} disabled={!hasContent} style={ctrlBtnStyle}>
           ⏹ 重置
@@ -186,13 +207,15 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
 
       <div style={{ display: "flex", gap: 4 }}>
         <div style={panelStyle}>
-          <div style={labelStyle}>原始影片</div>
+          <div style={labelStyle}>
+            {isClipping ? `轉換片段 ${fmtTime(clipStart)} – ${fmtTime(clipEnd)}` : "原始影片"}
+          </div>
           {activeVideoSrc ? (
             <>
               <video
                 ref={videoRef}
                 src={activeVideoSrc}
-                onLoadedMetadata={isTrimming ? onVideoLoaded : undefined}
+                onLoadedMetadata={isTrimming || isClipping ? onVideoLoaded : undefined}
                 onEnded={onVideoEnded}
                 preload="auto"
                 playsInline
