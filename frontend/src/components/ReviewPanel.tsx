@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { TrimSlider } from "./TrimSlider";
 import { VrmPreview, VrmPreviewHandle } from "./VrmPreview";
 
 function fmtTime(sec: number): string {
@@ -33,6 +34,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
   const [duration, setDuration] = useState(0);
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
   const rafRef = useRef<number>(0);
 
   const localUrl = useMemo(
@@ -55,22 +57,21 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
     setDuration(dur);
     setStartTime(0);
     setEndTime(dur);
+    setCurrentTime(0);
   }, []);
 
   useEffect(() => {
     if (!isTrimming) return;
     const v = videoRef.current;
-    if (!v || !playing) return;
-    const check = () => {
-      if (v.currentTime >= endTime) {
-        v.pause();
+    if (!v) return;
+    const tick = () => {
+      setCurrentTime(v.currentTime);
+      if (playing && v.currentTime >= endTime) {
         v.currentTime = startTime;
-        setPlaying(false);
-        return;
       }
-      rafRef.current = requestAnimationFrame(check);
+      rafRef.current = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(check);
+    rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [isTrimming, playing, startTime, endTime]);
 
@@ -78,7 +79,9 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
     if (isTrimming) {
       const v = videoRef.current;
       if (!v) return;
-      v.currentTime = startTime;
+      if (v.currentTime < startTime || v.currentTime >= endTime) {
+        v.currentTime = startTime;
+      }
       v.play();
     } else {
       videoRef.current?.play();
@@ -86,7 +89,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
       vrmRef.current?.play();
     }
     setPlaying(true);
-  }, [isTrimming, startTime]);
+  }, [isTrimming, startTime, endTime]);
 
   const syncPause = useCallback(() => {
     videoRef.current?.pause();
@@ -118,22 +121,31 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
 
   const onStartChange = useCallback(
     (val: number) => {
-      const clamped = Math.min(val, endTime - 0.1);
-      const v = Math.max(0, clamped);
+      const v = Math.max(0, Math.min(val, endTime - 0.1));
       setStartTime(v);
       const el = videoRef.current;
-      if (el && !playing) el.currentTime = v;
+      if (el && !playing) {
+        el.currentTime = v;
+        setCurrentTime(v);
+      }
     },
     [endTime, playing],
   );
 
   const onEndChange = useCallback(
     (val: number) => {
-      const clamped = Math.max(val, startTime + 0.1);
-      setEndTime(Math.min(duration, clamped));
+      setEndTime(Math.max(startTime + 0.1, Math.min(duration, val)));
     },
     [startTime, duration],
   );
+
+  const onSeek = useCallback((t: number) => {
+    const el = videoRef.current;
+    if (el) {
+      el.currentTime = t;
+      setCurrentTime(t);
+    }
+  }, []);
 
   const segmentDuration = Math.max(0, endTime - startTime);
   const hasContent = activeVideoSrc || overlayUrl || vrmaBlob;
@@ -152,29 +164,29 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
           ⏹ 重置
         </button>
         {isTrimming && trim && (
-          <button
-            onClick={() => trim.onStart(trim.file, startTime, endTime)}
-            disabled={trim.disabled || segmentDuration < 0.1}
-            style={{
-              ...startBtnStyle,
-              opacity: trim.disabled || segmentDuration < 0.1 ? 0.5 : 1,
-            }}
-          >
-            開始轉換
-          </button>
+          <>
+            <button
+              onClick={() => trim.onStart(trim.file, startTime, endTime)}
+              disabled={trim.disabled || segmentDuration < 0.1}
+              style={{
+                ...startBtnStyle,
+                opacity: trim.disabled || segmentDuration < 0.1 ? 0.5 : 1,
+              }}
+            >
+              開始轉換
+            </button>
+            {duration > 0 && (
+              <span style={{ fontSize: "0.8em", color: "#666" }}>
+                選取 {fmtTime(segmentDuration)} / 總長 {fmtTime(duration)}
+              </span>
+            )}
+          </>
         )}
       </div>
 
       <div style={{ display: "flex", gap: 4 }}>
         <div style={panelStyle}>
-          <div style={labelStyle}>
-            原始影片
-            {isTrimming && duration > 0 && (
-              <span style={{ fontWeight: "normal", marginLeft: 8 }}>
-                {fmtTime(segmentDuration)} / {fmtTime(duration)}
-              </span>
-            )}
-          </div>
+          <div style={labelStyle}>原始影片</div>
           {activeVideoSrc ? (
             <>
               <video
@@ -188,34 +200,15 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim }: Pr
                 style={mediaStyle}
               />
               {isTrimming && duration > 0 && (
-                <div style={{ padding: "8px 8px 6px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <span style={sliderLabel}>起始</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={duration}
-                      step={0.1}
-                      value={startTime}
-                      onChange={(e) => onStartChange(Number(e.target.value))}
-                      style={{ flex: 1 }}
-                    />
-                    <span style={timeDisplay}>{fmtTime(startTime)}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={sliderLabel}>結束</span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={duration}
-                      step={0.1}
-                      value={endTime}
-                      onChange={(e) => onEndChange(Number(e.target.value))}
-                      style={{ flex: 1 }}
-                    />
-                    <span style={timeDisplay}>{fmtTime(endTime)}</span>
-                  </div>
-                </div>
+                <TrimSlider
+                  duration={duration}
+                  startTime={startTime}
+                  endTime={endTime}
+                  currentTime={currentTime}
+                  onStartChange={onStartChange}
+                  onEndChange={onEndChange}
+                  onSeek={onSeek}
+                />
               )}
             </>
           ) : (
@@ -304,18 +297,4 @@ const startBtnStyle: React.CSSProperties = {
   cursor: "pointer",
   fontSize: "0.9em",
   fontWeight: "bold",
-};
-
-const sliderLabel: React.CSSProperties = {
-  fontSize: "0.8em",
-  color: "#666",
-  minWidth: 30,
-};
-
-const timeDisplay: React.CSSProperties = {
-  minWidth: 45,
-  textAlign: "right",
-  fontFamily: "monospace",
-  fontSize: "0.8em",
-  color: "#444",
 };
