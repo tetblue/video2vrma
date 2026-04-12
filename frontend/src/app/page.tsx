@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ConversionPanel } from "@/components/ConversionPanel";
 import { ProgressDisplay } from "@/components/ProgressDisplay";
+import { SystemStats } from "@/components/SystemStats";
 import { TrackSelector } from "@/components/TrackSelector";
 import { VideoUploader } from "@/components/VideoUploader";
 import { VrmPreview } from "@/components/VrmPreview";
@@ -118,7 +119,10 @@ export default function Home() {
 
   return (
     <main style={{ padding: "2rem", fontFamily: "sans-serif", maxWidth: 1080, margin: "0 auto" }}>
-      <h1>video2vrma</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 4 }}>
+        <h1 style={{ margin: 0 }}>video2vrma</h1>
+        <SystemStats />
+      </div>
       <p style={{ color: "#666" }}>
         上傳 MP4 影片 → PHALP 偵測人物 → 選 track → 轉 BVH → 瀏覽器內轉 VRMA → 套到 VRM 預覽
       </p>

@@ -122,6 +122,16 @@ def test_tracks_409_before_ready(client_and_stub, tmp_path, monkeypatch):
     assert r.status_code == 409
 
 
+def test_system_stats(client_and_stub):
+    client, _ = client_and_stub
+    r = client.get("/api/system/stats")
+    assert r.status_code == 200
+    data = r.json()
+    assert "cpu_pct" in data
+    assert isinstance(data["tasks_queued"], int)
+    assert isinstance(data["tasks_total"], int)
+
+
 def test_websocket_snapshot(client_and_stub, tmp_path):
     client, _ = client_and_stub
     fake_mp4 = tmp_path / "in.mp4"

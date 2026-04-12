@@ -91,3 +91,19 @@ export function wsUrl(taskId: string): string {
   const base = API_BASE.replace(/^http/, "ws");
   return `${base}/api/ws/tasks/${taskId}`;
 }
+
+export type SystemStats = {
+  cpu_pct: number;
+  gpu_name: string | null;
+  gpu_util_pct: number | null;
+  gpu_mem_used_mb: number | null;
+  gpu_mem_total_mb: number | null;
+  tasks_queued: number;
+  tasks_active: number;
+  tasks_total: number;
+};
+
+export async function getSystemStats(): Promise<SystemStats> {
+  const res = await fetch(`${API_BASE}/api/system/stats`);
+  return jsonOrThrow(res);
+}

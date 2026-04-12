@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import TMP
 from app.core.gpu_worker import GPUWorker
 from app.core.task_manager import TaskManager
+from app.routers import system as system_router
 from app.routers import tasks as tasks_router
 from app.routers import upload as upload_router
 
@@ -57,6 +58,7 @@ def create_app(pipeline_module=None) -> FastAPI:
     )
     app.include_router(upload_router.router, prefix="/api")
     app.include_router(tasks_router.router, prefix="/api")
+    app.include_router(system_router.router, prefix="/api")
     return app
 
 
