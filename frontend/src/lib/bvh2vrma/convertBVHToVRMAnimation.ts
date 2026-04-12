@@ -40,53 +40,22 @@ export async function convertBVHToVRMAnimation(
   const vrmBoneMap = mapSkeletonToVRM(rootBone);
   rootBone.userData.vrmBoneMap = vrmBoneMap;
 
-  const hipsBone = vrmBoneMap.get("hips")!;
-  const hipsBoneName = hipsBone.name;
-  let hipsPositionTrack: THREE.VectorKeyframeTrack | null = null;
-
-  const spineBone = vrmBoneMap.get("spine")!;
-  const spineBoneName = spineBone.name;
-  let spinePositionTrack: THREE.VectorKeyframeTrack | null = null;
-
-  // rename tracks + remove translation tracks other than hips + pickup spine track
+  // rename quaternion tracks. 不輸出 hips position track —
+  // createVRMAnimationClip 會把 track 值直接寫到 VRM hips local position，
+  // 蓋掉 VRM 本身的 rest hips 位置造成角色沉到地面以下。Phase 2 我們只需要
+  // 骨骼旋轉動畫，讓 VRM hips 停在自己的 rest 位置即可。
   const filteredTracks: THREE.KeyframeTrack[] = [];
-
   for (const origTrack of bvh.clip.tracks) {
     const track = origTrack.clone();
     track.name = track.name.replace(/\.bones\[(.*)\]/, "$1");
-
     if (track.name.endsWith(".quaternion")) {
       filteredTracks.push(track);
-    }
-
-    if (track.name === `${hipsBoneName}.position`) {
-      const newTrack = track.clone();
-      newTrack.values = track.values.map((v) => v * (scale));
-
-      hipsPositionTrack = newTrack;
-      filteredTracks.push(newTrack);
-    }
-
-    if (track.name === `${spineBoneName}.position`) {
-      const newTrack = track.clone();
-      newTrack.values = track.values.map((v) => v * (scale));
-
-      spinePositionTrack = newTrack;
     }
   }
 
   clip.tracks = filteredTracks;
 
-  // Remove offsets contained in hips position track
-  if (hipsPositionTrack != null) {
-    const offset = hipsBone.position.toArray();
-
-    for (let i = 0; i < hipsPositionTrack.values.length; i ++) {
-      hipsPositionTrack.values[i] -= offset[i % 3];
-    }
-  }
-
-  // some BVHs does not ground correctly
+  // 把 skeleton auto-ground，避免 exported glb 的 rest hips Y 是負值
   const boundingBox = createSkeletonBoundingBox(skeleton);
   if (boundingBox.min.y < 0) {
     rootBone.position.y -= boundingBox.min.y;

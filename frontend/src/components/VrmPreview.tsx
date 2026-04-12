@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
@@ -21,10 +21,13 @@ export function VrmPreview({ vrmUrl, vrmaBlob }: Props) {
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const vrmRef = useRef<VRM | null>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
   const clockRef = useRef<THREE.Clock>(new THREE.Clock());
   const animationRef = useRef<number | null>(null);
+  const vrmRef = useRef<VRM | null>(null);
+
+  const [vrm, setVrm] = useState<VRM | null>(null);
+  const [status, setStatus] = useState<string>("初始化中");
 
   useEffect(() => {
     const container = containerRef.current;
@@ -63,26 +66,39 @@ export function VrmPreview({ vrmUrl, vrmaBlob }: Props) {
     loader.register((parser) => new VRMLoaderPlugin(parser));
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
 
+    setStatus("載入 VRM 中...");
     loader.load(
       vrmUrl,
       (gltf) => {
-        const vrm: VRM | undefined = gltf.userData.vrm;
-        if (!vrm) {
-          console.error("loaded gltf has no VRM userData");
+        const loaded: VRM | undefined = gltf.userData.vrm;
+        if (!loaded) {
+          setStatus("載入失敗：gltf.userData.vrm 是 undefined");
           return;
         }
-        scene.add(vrm.scene);
-        vrm.scene.rotation.y = Math.PI;
-        vrmRef.current = vrm;
+        scene.add(loaded.scene);
+        // VRM 預設 rest pose 面向 +Z (VRM 規格)，但我們的相機在 +Z 往 -Z 看，
+        // 所以實際上 rest pose 是背對相機；加 Y 180° 讓角色正面朝相機
+        loaded.scene.rotation.y = Math.PI;
+        vrmRef.current = loaded;
+        setVrm(loaded);
+        setStatus("VRM 就緒，等待 VRMA");
       },
-      undefined,
-      (err) => console.error("vrm load error", err),
+      (progress) => {
+        if (progress.total > 0) {
+          setStatus(`載入 VRM ${Math.round((progress.loaded / progress.total) * 100)}%`);
+        }
+      },
+      (err) => {
+        console.error("vrm load error", err);
+        setStatus("VRM 載入錯誤（見 console）");
+      },
     );
 
     const tick = () => {
       animationRef.current = requestAnimationFrame(tick);
       const dt = clockRef.current.getDelta();
       if (mixerRef.current) mixerRef.current.update(dt);
+      // vrm.update 必須在 mixer.update 之後呼叫，才能 apply humanoid bone pose
       if (vrmRef.current) vrmRef.current.update(dt);
       controls.update();
       renderer.render(scene, camera);
@@ -110,8 +126,9 @@ export function VrmPreview({ vrmUrl, vrmaBlob }: Props) {
   }, [vrmUrl]);
 
   useEffect(() => {
-    if (!vrmaBlob || !vrmRef.current) return;
-    const vrm = vrmRef.current;
+    if (!vrm || !vrmaBlob) return;
+
+    setStatus("載入 VRMA 中...");
     const url = URL.createObjectURL(vrmaBlob);
 
     const loader = new GLTFLoader();
@@ -120,25 +137,38 @@ export function VrmPreview({ vrmUrl, vrmaBlob }: Props) {
     loader.load(
       url,
       (gltf) => {
+        URL.revokeObjectURL(url);
         const vrmAnim: VRMAnimation | undefined = gltf.userData.vrmAnimations?.[0];
         if (!vrmAnim) {
-          console.error("no vrmAnimations in loaded gltf");
-          URL.revokeObjectURL(url);
+          setStatus("VRMA 載入成功但沒有 vrmAnimations");
           return;
         }
         const clip = createVRMAnimationClip(vrmAnim, vrm);
+        if (clip.tracks.length === 0) {
+          setStatus("VRMA clip 沒有任何 track");
+          return;
+        }
+        if (mixerRef.current) mixerRef.current.stopAllAction();
         const mixer = new THREE.AnimationMixer(vrm.scene);
         mixer.clipAction(clip).play();
         mixerRef.current = mixer;
-        URL.revokeObjectURL(url);
+        setStatus(`播放中：${clip.tracks.length} tracks / ${clip.duration.toFixed(2)}s`);
       },
       undefined,
       (err) => {
-        console.error("vrma load error", err);
         URL.revokeObjectURL(url);
+        console.error("vrma load error", err);
+        setStatus("VRMA 載入錯誤（見 console）");
       },
     );
-  }, [vrmaBlob]);
+  }, [vrm, vrmaBlob]);
 
-  return <div ref={containerRef} style={{ width: "100%", height: 480 }} />;
+  return (
+    <div>
+      <div style={{ padding: "4px 8px", background: "#eee", fontSize: "0.85em", color: "#333" }}>
+        狀態：{status}
+      </div>
+      <div ref={containerRef} style={{ width: "100%", height: 480 }} />
+    </div>
+  );
 }

@@ -653,16 +653,18 @@ video2vrma/
 - [x] 2.4 實作 `frontend/src/services/bvhToVrma.ts`（`bvhTextToVrmaBlob(bvhText, {scale})`，用 three 的 BVHLoader 解析後丟進 convertBVHToVRMAnimation）
 - [x] 2.5 建前端測試頁面 `frontend/src/app/page.tsx`：檔案選擇器 → 自動轉 VRMA → 下載按鈕 + 3D 預覽
 - [x] 2.6 實作 `frontend/src/components/VrmPreview.tsx`：three WebGLRenderer + OrbitControls + VRMLoaderPlugin + VRMAnimationLoaderPlugin，AnimationMixer 播放
-- [ ] 2.7 驗證動畫品質（使用者手動在瀏覽器確認）
-  - 手腳交叉 → 骨架映射錯誤
-  - 鏡像 → 左右反轉
-  - 手臂偏移 → rest pose 補償問題
+- [x] 2.7 驗證動畫品質（使用者手動在瀏覽器確認通過）
+  - 過程中解決 4 個跨前後端 coordinate 問題：
+    1. VRM 預設面向 +Z 而 three.js 相機在 +Z 看 −Z → vrm.scene `rotation.y = Math.PI` 讓角色面對相機
+    2. PHALP `global_orient` 是相機座標 (Y down, Z forward) → 在 `smpl_to_bvh_service.extract_longest_track` 對 root rotation 左乘 `_R_CAM_TO_VRM = diag(1,-1,-1)` 轉到 VRM 世界
+    3. bvh2vrma 預設會輸出 hips position track (all-zero 相對位移)，`createVRMAnimationClip` 會把零值寫到 Normalized_Hips local position，把 VRM hips 拉到世界原點造成角色沉入地面 → 自訂 `convertBVHToVRMAnimation.ts` 完全不輸出 hips position track
+    4. 拿掉 hips position track 後，原本依賴 auto-grounding 把 skeleton bbox min.y 抬到 0 仍需保留，否則 exported glb 的 rest hips world Y 是負值，導致 mixer binding 失效整個 clip 都不動
 - [x] 2.8 預設 VRM 模型 `frontend/public/models/default.vrm`（使用者提供 RINDO_Full.vrm 複製過去，52 MB）
 
 **驗收：**
 - ✅ `npm run typecheck` 無錯誤
 - ✅ `npm run build` Next.js 端到端編譯成功（/ app route 281 KB first load）
-- ⏳ 使用者手動在 `npm run dev` 起的頁面上傳 `tmp/phase1/dance.bvh` 確認動畫播放正確
+- ✅ 使用者手動在 `npm run dev` 頁面上傳 `tmp/phase1/dance.bvh` 確認角色站在地面、面對相機、動畫播放正常
 
 ---
 

@@ -48,6 +48,13 @@ def _ensure_smpl_layout(root: Path) -> Path:
     return root
 
 
+# 把 PHALP 相機座標 (Y down, Z forward) 的 global_orient 轉到 VRM/SMPL
+# 世界座標 (Y up, Z forward)，避免 BVH 載到 three.js / VRM 上出現上下顛倒
+# 與背對相機。只 pre-multiply root 旋轉，body_pose 是相對 parent 的 local
+# 旋轉，不需要額外轉換。
+_R_CAM_TO_VRM = np.diag([1.0, -1.0, -1.0]).astype(np.float32)
+
+
 def extract_longest_track(pkl_path: str | Path) -> tuple[np.ndarray, int]:
     data = joblib.load(pkl_path)
     frames = sorted(data.keys())
@@ -71,6 +78,7 @@ def extract_longest_track(pkl_path: str | Path) -> tuple[np.ndarray, int]:
     for k, (_, smpl) in enumerate(seq):
         go = np.asarray(smpl["global_orient"]).reshape(3, 3)
         bp = np.asarray(smpl["body_pose"]).reshape(23, 3, 3)
+        go = _R_CAM_TO_VRM @ go  # 相機 → VRM 世界
         mats = np.concatenate([go[None], bp], axis=0)  # (24, 3, 3)
         pose_aa[k] = R.from_matrix(mats).as_rotvec().astype(np.float32)
     return pose_aa, tid
