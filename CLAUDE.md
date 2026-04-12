@@ -111,12 +111,12 @@ video2vrma/
 │   ├── src/app/page.tsx       Phase 5 完整流程頁：upload → progress → tracks → convert → preview
 │   ├── src/components/
 │   │   ├── VideoUploader.tsx       檔案選擇（不自動上傳）
-│   │   │   ├── VideoTrimmer.tsx       影片預覽 + 時間段 slider + 開始轉換
+│   │   ├── TrimSlider.tsx         range slider + playhead 裁切控制項
 │   │   ├── ProgressDisplay.tsx     5 階段步驟條 + progress bar
 │   │   ├── TrackSelector.tsx       PHALP track 選擇
 │   │   ├── ConversionPanel.tsx     fps + smoothing + 觸發 convert
 │   │   ├── VrmPreview.tsx          three + @pixiv/three-vrm 預覽器
-│   │   ├── ReviewPanel.tsx         三欄同步預覽（原始影片 / overlay / VRM）
+│   │   ├── ReviewPanel.tsx         三欄同步預覽（原始影片 / overlay / VRM）+ 裁切 loop
 │   │   └── SystemStats.tsx         CPU / GPU / 佇列即時監控
 │   ├── src/hooks/useTaskProgress.ts  WebSocket 訂閱 /api/ws/tasks/{id}
 │   ├── src/services/

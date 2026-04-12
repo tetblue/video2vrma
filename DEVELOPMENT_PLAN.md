@@ -328,7 +328,7 @@ video2vrma/
 │   │   │   └── gpu_worker.py         # 背景 worker
 │   │   └── models/
 │   │       └── schemas.py            # Pydantic request/response
-│   ├── tests/                         # pytest 單元測試（8 tests）
+│   ├── tests/                         # pytest 單元測試（29 tests）
 │   ├── scripts/
 │   │   └── test_e2e.py               # 端到端 CLI
 │   └── pytest.ini
@@ -340,11 +340,12 @@ video2vrma/
 │   │   │   └── layout.tsx
 │   │   ├── components/
 │   │   │   ├── VideoUploader.tsx      # multipart 上傳
+│   │   │   ├── TrimSlider.tsx         # range slider + playhead 裁切控制項
 │   │   │   ├── ProgressDisplay.tsx    # 步驟條 + progress bar
 │   │   │   ├── TrackSelector.tsx      # track 選擇
 │   │   │   ├── ConversionPanel.tsx    # fps + smoothing + 轉換
 │   │   │   ├── VrmPreview.tsx         # three + @pixiv/three-vrm 預覽
-│   │   │   ├── ReviewPanel.tsx        # 三欄同步預覽（原始 / overlay / VRM）
+│   │   │   ├── ReviewPanel.tsx        # 三欄同步預覽（原始 / overlay / VRM）+ 裁切 loop
 │   │   │   └── SystemStats.tsx        # CPU / GPU / 佇列監控
 │   │   ├── services/
 │   │   │   ├── apiClient.ts           # fetch wrapper
@@ -725,6 +726,9 @@ video2vrma/
 - [x] 5b.3 三欄同步預覽面板 `ReviewPanel.tsx`：原始影片 / 骨架 overlay / VRM 動畫同步播放暫停
 - [x] 5b.4 骨架 overlay 影片：2D overlay mp4 + ffmpeg H.264 重編碼（瀏覽器相容）
 - [x] 5b.5 overlay 影片標示所有 track ID + 不同顏色骨架，方便選擇 track
+- [x] 5b.6 影片時間段選擇器：上傳前可用 range slider 設定起始與結束點，支援 playhead 拖曳
+- [x] 5b.7 裁切區段整合到 ReviewPanel：轉換前預覽裁切片段 loop，轉換後三窗格同步播放裁切區段
+- [x] 5b.8 修正 start_frame 未傳入 PHALP pipeline：選中間區段時 PHALP 只處理該區段（修正雙層幀過濾 bug）
 
 ### Phase 6：優化與錯誤處理
 

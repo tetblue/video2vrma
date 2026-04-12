@@ -154,7 +154,7 @@ video2vrma/
 │
 ├── models/                    本機模型 cache（不進 git，~6.4 GB）
 ├── backend/                   FastAPI 後端（Phase 1-4 建立，含 services / routers / tests）
-├── frontend/                  Next.js 前端（Phase 2、5 建立，含 7 個元件 + bvh2vrma lib）
+├── frontend/                  Next.js 前端（Phase 2、5 建立，含 8 個元件 + bvh2vrma lib）
 └── tmp/                       暫存 / 上傳 / 輸出（不進 git）
 ```
 
