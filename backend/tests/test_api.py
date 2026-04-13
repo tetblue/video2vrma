@@ -242,6 +242,70 @@ def test_delete_task(client_and_stub, tmp_path):
     assert not (tmp_path / "history" / f"{task_id}.json").exists()
 
 
+def test_history_list(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    _upload(client, tmp_path, "a.mp4", "user-A")
+    _upload(client, tmp_path, "b.mp4", "user-A")
+    _upload(client, tmp_path, "c.mp4", "user-B")
+
+    r = client.get("/api/history", headers={"X-Client-Id": "user-A"})
+    assert r.status_code == 200
+    items = r.json()
+    assert len(items) == 2
+    assert all(i["file_name"] in ("a.mp4", "b.mp4") for i in items)
+
+    r = client.get("/api/history", headers={"X-Client-Id": "user-B"})
+    assert len(r.json()) == 1
+
+    r = client.get("/api/history")
+    assert r.json() == []
+
+
+def test_shared_task_endpoint(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    data = _upload(client, tmp_path)
+    task_id = data["task_id"]
+    share_token = data["share_token"]
+    _wait_for(client, task_id, "tracks_ready")
+
+    r = client.get(f"/api/r/{share_token}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["task_id"] == task_id
+    assert body["file_name"] == "in.mp4"
+    assert body["status"] == "tracks_ready"
+    assert body["has_overlay"] is True
+    assert body["has_video"] is True
+    assert body["tracks"] is not None
+
+    r = client.get("/api/r/nonexistent123")
+    assert r.status_code == 404
+
+
+def test_delete_task_api(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    data = _upload(client, tmp_path, client_id="owner-1")
+    task_id = data["task_id"]
+    _wait_for(client, task_id, "tracks_ready")
+
+    # wrong client_id → 403
+    r = client.delete(f"/api/tasks/{task_id}", headers={"X-Client-Id": "other"})
+    assert r.status_code == 403
+
+    # no client_id → 403
+    r = client.delete(f"/api/tasks/{task_id}")
+    assert r.status_code == 403
+
+    # correct client_id → success
+    r = client.delete(f"/api/tasks/{task_id}", headers={"X-Client-Id": "owner-1"})
+    assert r.status_code == 200
+    assert r.json()["deleted"] == task_id
+
+    # already deleted → 404
+    r = client.get(f"/api/tasks/{task_id}/status")
+    assert r.status_code == 404
+
+
 def test_client_id_auto_generated_when_missing(client_and_stub, tmp_path):
     client, _ = client_and_stub
     fake_mp4 = tmp_path / "no_header.mp4"

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
 from app.core.task_manager import TaskStep
@@ -85,6 +85,20 @@ async def serve_overlay(request: Request, task_id: str) -> FileResponse:
     if not task.overlay_path or not Path(task.overlay_path).exists():
         raise HTTPException(404, "overlay not ready")
     return FileResponse(task.overlay_path, media_type="video/mp4")
+
+
+@router.delete("/tasks/{task_id}")
+async def delete_task(
+    request: Request,
+    task_id: str,
+    x_client_id: str = Header(""),
+) -> dict:
+    task = _get_task_or_404(request, task_id)
+    if not x_client_id or task.client_id != x_client_id:
+        raise HTTPException(403, "not your task")
+    tm = request.app.state.task_manager
+    tm.delete_task(task_id)
+    return {"deleted": task_id}
 
 
 @router.websocket("/ws/tasks/{task_id}")

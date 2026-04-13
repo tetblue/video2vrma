@@ -819,10 +819,10 @@ error   → ERROR        → save ✓
 
 **Phase 7b：後端 API 端點**
 
-- [ ] 7b.1 新建 `routers/history.py`：`GET /api/history`（依 `X-Client-Id` 篩選，按時間倒序）
-- [ ] 7b.2 `routers/history.py`：`GET /api/r/{share_token}`（公開，回傳 task 資訊 + 下載連結，404 若已刪除）
-- [ ] 7b.3 `routers/tasks.py`：`DELETE /api/tasks/{task_id}`（驗證 `X-Client-Id` 匹配，403 若非本人）
-- [ ] 7b.4 `main.py`：註冊 history router（`app.include_router(history_router, prefix="/api")`）
+- [x] 7b.1 新建 `routers/history.py`：`GET /api/history`（依 `X-Client-Id` 篩選，按時間倒序）
+- [x] 7b.2 `routers/history.py`：`GET /api/r/{share_token}`（公開，回傳 task 資訊 + 下載連結，404 若已刪除）
+- [x] 7b.3 `routers/tasks.py`：`DELETE /api/tasks/{task_id}`（驗證 `X-Client-Id` 匹配，403 若非本人）
+- [x] 7b.4 `main.py`：註冊 history router（`app.include_router(history_router, prefix="/api")`）
 
 **驗收：** curl 可打 `GET /api/history`、`GET /api/r/{token}`、`DELETE /api/tasks/{id}`
 
