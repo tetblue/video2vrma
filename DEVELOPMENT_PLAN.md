@@ -828,10 +828,10 @@ error   → ERROR        → save ✓
 
 **Phase 7c：前端 Client ID 與 API 整合**
 
-- [ ] 7c.1 新建 `lib/clientId.ts`：`getClientId()` → `crypto.randomUUID()` + `localStorage`
-- [ ] 7c.2 `apiClient.ts`：`clientHeaders()` helper，所有 fetch 呼叫加 `X-Client-Id` header
-- [ ] 7c.3 `apiClient.ts`：新增 `getHistory()`、`getSharedTask(token)`、`deleteTask(taskId)` 函式與型別
-- [ ] 7c.4 `apiClient.ts`：更新 `uploadVideo` 回傳型別加 `share_token`
+- [x] 7c.1 新建 `lib/clientId.ts`：`getClientId()` → `crypto.randomUUID()` + `localStorage`
+- [x] 7c.2 `apiClient.ts`：`clientHeaders()` helper，所有 fetch 呼叫加 `X-Client-Id` header
+- [x] 7c.3 `apiClient.ts`：新增 `getHistory()`、`getSharedTask(token)`、`deleteTask(taskId)` 函式與型別
+- [x] 7c.4 `apiClient.ts`：更新 `uploadVideo` 回傳型別�� `share_token`
 
 **驗收：** `tsc --noEmit` 通過，現有功能不受影響
 

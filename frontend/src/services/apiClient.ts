@@ -1,10 +1,17 @@
-// Backend API client (Phase 4 routes)。預設打到 localhost:8000，可用
+// Backend API client。預設打到 localhost:8000，可用
 // NEXT_PUBLIC_API_BASE 覆寫。
+
+import { getClientId } from "@/lib/clientId";
 
 const RAW_BASE =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_BASE) ||
   "http://localhost:8000";
 export const API_BASE = RAW_BASE.replace(/\/+$/, "");
+
+function clientHeaders(): Record<string, string> {
+  const id = getClientId();
+  return id ? { "X-Client-Id": id } : {};
+}
 
 export type TaskStep =
   | "queued"
@@ -60,12 +67,16 @@ export async function uploadVideo(
   file: File,
   startTime?: number,
   endTime?: number,
-): Promise<{ task_id: string }> {
+): Promise<{ task_id: string; share_token: string }> {
   const fd = new FormData();
   fd.append("file", file);
   if (startTime != null && startTime > 0) fd.append("start_time", String(startTime));
   if (endTime != null && endTime > 0) fd.append("end_time", String(endTime));
-  const res = await fetch(`${API_BASE}/api/upload`, { method: "POST", body: fd });
+  const res = await fetch(`${API_BASE}/api/upload`, {
+    method: "POST",
+    body: fd,
+    headers: clientHeaders(),
+  });
   return jsonOrThrow(res);
 }
 
@@ -124,4 +135,50 @@ export type SystemStats = {
 export async function getSystemStats(): Promise<SystemStats> {
   const res = await fetch(`${API_BASE}/api/system/stats`);
   return jsonOrThrow(res);
+}
+
+// --- History / Share / Delete ---
+
+export type HistoryItem = {
+  task_id: string;
+  share_token: string;
+  file_name: string;
+  status: string;
+  created_at: string;
+  has_bvh: boolean;
+  has_overlay: boolean;
+  error: string | null;
+};
+
+export async function getHistory(): Promise<HistoryItem[]> {
+  const res = await fetch(`${API_BASE}/api/history`, {
+    headers: clientHeaders(),
+  });
+  return jsonOrThrow(res);
+}
+
+export type SharedTask = {
+  task_id: string;
+  file_name: string;
+  status: string;
+  created_at: string;
+  has_bvh: boolean;
+  has_overlay: boolean;
+  has_video: boolean;
+  tracks: TrackInfo[] | null;
+  detection_fps: number | null;
+  total_frames: number | null;
+};
+
+export async function getSharedTask(shareToken: string): Promise<SharedTask> {
+  const res = await fetch(`${API_BASE}/api/r/${shareToken}`);
+  return jsonOrThrow(res);
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
+    method: "DELETE",
+    headers: clientHeaders(),
+  });
+  if (!res.ok) throw new Error(`delete failed: ${res.status}`);
 }
