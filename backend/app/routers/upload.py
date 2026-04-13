@@ -42,10 +42,12 @@ async def upload(
         shutil.copyfileobj(file.file, f)
     task_manager.tasks[task_id].video_path = str(dest)
 
+    fps = _probe_fps(dest)
+    task_manager.tasks[task_id].native_fps = fps
+
     start_frame = 0
     end_frame = -1
     if start_time is not None or end_time is not None:
-        fps = _probe_fps(dest)
         if start_time is not None and start_time > 0:
             start_frame = math.floor(start_time * fps)
         if end_time is not None and end_time > 0:

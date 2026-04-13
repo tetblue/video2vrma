@@ -27,7 +27,7 @@ class StubPipeline:
             "total_frames": 130,
         }
 
-    def step1b_overlay(self, pkl_path, output_dir):
+    def step1b_overlay(self, pkl_path, output_dir, fps=30):
         out_dir = Path(output_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         overlay = out_dir / "overlay.mp4"

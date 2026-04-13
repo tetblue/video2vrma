@@ -24,11 +24,11 @@ def step1_detect(
     return {"pkl": pkl_path, "tracks": tracks, "total_frames": total_frames}
 
 
-def step1b_overlay(pkl_path: str | Path, output_dir: str | Path) -> Path:
+def step1b_overlay(pkl_path: str | Path, output_dir: str | Path, fps: float = DEFAULT_FPS) -> Path:
     pkl_path = Path(pkl_path)
     output_dir = Path(output_dir)
     overlay_path = output_dir / "overlay.mp4"
-    render_overlay_video(pkl_path=pkl_path, output_mp4=overlay_path, fps=DEFAULT_FPS)
+    render_overlay_video(pkl_path=pkl_path, output_mp4=overlay_path, fps=fps)
     return overlay_path
 
 

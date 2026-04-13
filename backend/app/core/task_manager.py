@@ -29,6 +29,7 @@ class TaskState:
     pkl_path: str | None = None
     overlay_path: str | None = None
     bvh_path: str | None = None
+    native_fps: float = 30.0
     tracks: list[dict] | None = None
     total_frames: int = 0
     error: str | None = None

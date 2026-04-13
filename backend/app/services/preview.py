@@ -124,7 +124,7 @@ def _track_color(tid: int) -> tuple[int, int, int]:
 def render_overlay_video(
     pkl_path: str | Path,
     output_mp4: str | Path,
-    fps: int = 30,
+    fps: float = 30,
 ) -> Path:
     import cv2
 
