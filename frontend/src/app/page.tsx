@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ConversionPanel } from "@/components/ConversionPanel";
+import { HistoryPanel } from "@/components/HistoryPanel";
 import { ProgressDisplay } from "@/components/ProgressDisplay";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { SystemStats } from "@/components/SystemStats";
@@ -12,6 +13,7 @@ import { useTaskProgress } from "@/hooks/useTaskProgress";
 import {
   TrackInfo,
   downloadBvhText,
+  getStatus,
   getTracks,
   overlayUrl,
   postConvert,
@@ -25,6 +27,7 @@ export default function Home() {
   const [clipInfo, setClipInfo] = useState<{ file: File; start: number; end: number } | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [shareToken, setShareToken] = useState<string | null>(null);
   const [tracks, setTracks] = useState<TrackInfo[] | null>(null);
   const [detectionFps, setDetectionFps] = useState(30);
   const [totalFrames, setTotalFrames] = useState(0);
@@ -33,6 +36,7 @@ export default function Home() {
   const [vrmaBlob, setVrmaBlob] = useState<Blob | null>(null);
   const [busy, setBusy] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [historyKey, setHistoryKey] = useState(0);
 
   const progress = useTaskProgress(taskId);
 
@@ -52,6 +56,7 @@ export default function Home() {
     setClipInfo(null);
     setTaskId(null);
     setFileName(null);
+    setShareToken(null);
     setTracks(null);
     setSelectedTrack(null);
     setBvhText(null);
@@ -65,10 +70,12 @@ export default function Home() {
       setPageError(null);
       setClipInfo({ file, start: startTime, end: endTime });
       try {
-        const { task_id } = await uploadVideo(file, startTime, endTime);
+        const { task_id, share_token } = await uploadVideo(file, startTime, endTime);
         setTaskId(task_id);
         setFileName(file.name);
+        setShareToken(share_token);
         setSelectedFile(null);
+        setHistoryKey((k) => k + 1);
       } catch (err) {
         setPageError(String(err));
       } finally {
@@ -107,7 +114,10 @@ export default function Home() {
         if (cancelled) return;
         setBvhText(bvh);
         const blob = await bvhTextToVrmaBlob(bvh, { scale: 0.01 });
-        if (!cancelled) setVrmaBlob(blob);
+        if (!cancelled) {
+          setVrmaBlob(blob);
+          setHistoryKey((k) => k + 1);
+        }
       } catch (e) {
         if (!cancelled) setPageError(String(e));
       }
@@ -133,6 +143,44 @@ export default function Home() {
       }
     },
     [taskId, selectedTrack],
+  );
+
+  const onLoadTask = useCallback(
+    async (loadTaskId: string, loadFileName: string) => {
+      if (loadTaskId === taskId) return;
+      setSelectedFile(null);
+      setClipInfo(null);
+      setTaskId(loadTaskId);
+      setFileName(loadFileName);
+      setShareToken(null);
+      setTracks(null);
+      setSelectedTrack(null);
+      setBvhText(null);
+      setVrmaBlob(null);
+      setPageError(null);
+      setBusy(true);
+      try {
+        const st = await getStatus(loadTaskId);
+        if (st.status === "tracks_ready" || st.status === "bvh_ready") {
+          const res = await getTracks(loadTaskId);
+          setTracks(res.tracks);
+          setDetectionFps(res.detection_fps);
+          setTotalFrames(res.total_frames);
+          if (res.tracks.length > 0) setSelectedTrack(res.tracks[0].track_id);
+        }
+        if (st.status === "bvh_ready") {
+          const bvh = await downloadBvhText(loadTaskId);
+          setBvhText(bvh);
+          const blob = await bvhTextToVrmaBlob(bvh, { scale: 0.01 });
+          setVrmaBlob(blob);
+        }
+      } catch (e) {
+        setPageError(String(e));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [taskId],
   );
 
   const onDownloadBvh = useCallback(() => {
@@ -163,12 +211,20 @@ export default function Home() {
     setClipInfo(null);
     setTaskId(null);
     setFileName(null);
+    setShareToken(null);
     setTracks(null);
     setSelectedTrack(null);
     setBvhText(null);
     setVrmaBlob(null);
     setPageError(null);
   }, []);
+
+  const onCopyShareLink = useCallback(() => {
+    if (!shareToken) return;
+    const link = `${window.location.origin}/r/${shareToken}`;
+    navigator.clipboard.writeText(link).catch(() => {});
+    alert(`link copied:\n${link}`);
+  }, [shareToken]);
 
   const canConvert =
     taskId !== null &&
@@ -196,8 +252,15 @@ export default function Home() {
         <SystemStats />
       </div>
       <p style={{ color: "#666" }}>
-        上傳 MP4 影片 → 設定轉換時間段 → PHALP 偵測人物 → 選 track → 轉 BVH → 瀏覽器內轉 VRMA → 套到 VRM 預覽
+        upload MP4 → trim → PHALP detect → select track → BVH → VRMA → VRM preview
       </p>
+
+      <details style={{ marginBottom: 16 }}>
+        <summary style={{ cursor: "pointer", fontWeight: "bold", fontSize: "0.95em" }}>
+          history
+        </summary>
+        <HistoryPanel onLoadTask={onLoadTask} currentTaskId={taskId} refreshKey={historyKey} />
+      </details>
 
       <section style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -206,8 +269,13 @@ export default function Home() {
             <span style={{ fontSize: "0.85em", color: "#666" }}>
               {taskId && <>task: <code>{taskId}</code> · </>}
               {fileName || selectedFile?.name}
-              <button onClick={onReset} style={{ marginLeft: 12, fontSize: "0.85em" }}>
-                重新開始
+              {shareToken && (
+                <button onClick={onCopyShareLink} style={{ marginLeft: 8, fontSize: "0.85em" }}>
+                  copy share link
+                </button>
+              )}
+              <button onClick={onReset} style={{ marginLeft: 8, fontSize: "0.85em" }}>
+                reset
               </button>
             </span>
           )}
@@ -251,12 +319,12 @@ export default function Home() {
         <section style={{ marginBottom: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
           {bvhText && (
             <button onClick={onDownloadBvh} style={dlBtnStyle}>
-              下載 BVH ({Math.round(bvhText.length / 1024)} KB)
+              download BVH ({Math.round(bvhText.length / 1024)} KB)
             </button>
           )}
           {vrmaBlob && (
             <button onClick={onDownloadVrma} style={dlBtnStyle}>
-              下載 VRMA ({Math.round(vrmaBlob.size / 1024)} KB)
+              download VRMA ({Math.round(vrmaBlob.size / 1024)} KB)
             </button>
           )}
         </section>
@@ -275,7 +343,7 @@ export default function Home() {
       </section>
 
       <p style={{ marginTop: "0.5rem", color: "#666", fontSize: "0.85em" }}>
-        滑鼠拖曳可旋轉 VRM 相機、滾輪縮放。
+        drag to rotate VRM camera, scroll to zoom.
       </p>
     </main>
   );

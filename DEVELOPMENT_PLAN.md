@@ -837,10 +837,10 @@ error   → ERROR        → save ✓
 
 **Phase 7d：前端歷史記錄 UI**
 
-- [ ] 7d.1 新建 `components/HistoryPanel.tsx`：列表顯示檔名、狀態標籤、相對時間、載入 / 分享 / 刪除按鈕
-- [ ] 7d.2 `page.tsx`：新增 `onLoadTask(taskId, fileName)` 回調（fetch status → tracks → BVH → 恢復狀態）
-- [ ] 7d.3 `page.tsx`：整合 HistoryPanel（`<details>` 摺疊區塊，放在上傳區上方）
-- [ ] 7d.4 `page.tsx`：上傳後儲存 `shareToken` state，顯示可複製的分享連結
+- [x] 7d.1 新建 `components/HistoryPanel.tsx`：列表顯示檔名、狀態標籤、相對時間、載入 / 分享 / 刪除按鈕
+- [x] 7d.2 `page.tsx`：新增 `onLoadTask(taskId, fileName)` 回調（fetch status → tracks → BVH → 恢復狀態）
+- [x] 7d.3 `page.tsx`：整合 HistoryPanel（`<details>` 摺疊區塊，放在上傳區上方）
+- [x] 7d.4 `page.tsx`：上傳後儲存 `shareToken` state，顯示可複製的分享連結
 
 **驗收：** 開瀏覽器 → 歷史列表可展開、載入舊任務可檢視/下載、刪除有確認對話框、分享連結可複製
 
