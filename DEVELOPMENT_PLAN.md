@@ -938,6 +938,58 @@ interpolation.py: axis-angle → quaternion → SLERP 補幀 → axis-angle
 
 ---
 
+### Phase 9：轉換計時、同步 playhead、歷史 load 完整功能
+
+**目標：** 三項 UX 改進 — (1) 每個 task 顯示偵測/轉換耗時；(2) 轉換片段與 overlay 影片下方加同步 playhead；(3) 從 history load 已完成 task 時具備與首次轉換完全一致的操作功能。
+
+**Phase 9a：轉換計時**
+
+後端：TaskState 新增 4 個 datetime 欄位追蹤偵測/轉換的起止時間，gpu_worker 在狀態轉換點設定。
+前端：HistoryPanel 顯示耗時，ProgressDisplay 即時顯示已耗時秒數。
+
+- [ ] 9a.1 `task_manager.py`：TaskState 新增 `detect_started_at`、`detect_finished_at`、`convert_started_at`、`convert_finished_at`（datetime | None），加入 `to_persist_dict` / `from_persist_dict`
+- [ ] 9a.2 `gpu_worker.py`：DETECTING 開始設 `detect_started_at`，TRACKS_READY 設 `detect_finished_at`，CONVERTING 設 `convert_started_at`，BVH_READY 設 `convert_finished_at`，ERROR 設對應 finished_at
+- [ ] 9a.3 `schemas.py`：HistoryItem / SharedTaskResponse 新增 `detect_elapsed_sec: float | None`、`convert_elapsed_sec: float | None`
+- [ ] 9a.4 `routers/history.py`：回傳時計算 `(finished - started).total_seconds()`
+- [ ] 9a.5 `apiClient.ts`：型別加 `detect_elapsed_sec` / `convert_elapsed_sec`
+- [ ] 9a.6 `HistoryPanel.tsx`：每筆記錄顯示耗時（如 "detect 45s | convert 3s"）
+- [ ] 9a.7 `ProgressDisplay.tsx`：轉換中即時顯示已耗時秒數（useEffect + interval）
+- [ ] 9a.8 `tests/test_api.py`：驗證時間欄位存在
+
+**驗收：** 偵測/轉換完成後 history 正確顯示耗時；轉換中 ProgressDisplay 即時計時
+
+**Phase 9b：同步 playhead**
+
+新建精簡版 PlaybackBar 元件（薄型進度條 + 可點擊跳轉），放在 ReviewPanel 的影片和 overlay 面板下方。
+
+- [ ] 9b.1 新建 `components/PlaybackBar.tsx`：Props `duration`、`currentTime`、`onSeek?`，薄型橫條顯示已播放比例
+- [ ] 9b.2 `ReviewPanel.tsx`：新增 `overlayDuration`、`overlayCurrentTime` state，overlay 用 `onLoadedMetadata` 取 duration，tick loop 更新 currentTime
+- [ ] 9b.3 `ReviewPanel.tsx`：同步播放模式下影片面板加 `<PlaybackBar>`（duration = clipEnd-clipStart，currentTime = video.currentTime-clipStart）
+- [ ] 9b.4 `ReviewPanel.tsx`：overlay 面板加 `<PlaybackBar>`（duration = overlayDuration，currentTime = overlayCurrentTime）
+
+**驗收：** 同步播放時兩個 playhead 同步移動，可點擊跳轉
+
+**Phase 9c：history load 完整功能**
+
+從 history load 已完成 task 時，操作行為與首次轉換完全一致：三面板同步播放、重選 track、重新轉換、下載、分享連結。
+
+核心改動：持久化裁切資訊（clip_start_time / clip_end_time），load 時用後端 video URL 重建 clip，新增 `loadedStatus` 讓已完成 task 也能觸發 overlay URL 和 canConvert。
+
+- [ ] 9c.1 `task_manager.py`：TaskState 新增 `clip_start_time: float = 0.0`、`clip_end_time: float = 0.0`，加入 persist
+- [ ] 9c.2 `upload.py`：上傳時儲存 `task.clip_start_time` / `task.clip_end_time`（從 start_time / end_time Form 參數取得）
+- [ ] 9c.3 `schemas.py`：HistoryItem / SharedTaskResponse 新增 `clip_start_time`、`clip_end_time`
+- [ ] 9c.4 `routers/history.py`：回傳 clip_start_time / clip_end_time
+- [ ] 9c.5 `apiClient.ts`：型別更新，HistoryItem / SharedTask 加 clip time 欄位
+- [ ] 9c.6 `ReviewPanel.tsx`：`ClipInfo` 型別新增可選 `url?: string`（替代 File blob），`activeVideoSrc` 優先用 `clip.url`
+- [ ] 9c.7 `HistoryPanel.tsx`：`onLoadTask` callback 改為傳遞完整資訊（taskId, fileName, shareToken, clipStart, clipEnd）
+- [ ] 9c.8 `page.tsx`：新增 `loadedStatus` state，修改 `srcOverlayUrl` 和 `canConvert` 也看 `loadedStatus`
+- [ ] 9c.9 `page.tsx`：`onLoadTask` 完整恢復 — 設定 shareToken、用 video URL 建立 clipInfo、設定 loadedStatus、恢復 tracks/BVH/VRMA
+- [ ] 9c.10 `page.tsx`：load 後可重選 track、重新轉換（ConversionPanel 啟用）
+
+**驗收：** 從 history load 任意已完成 task → 三面板同步播放（含 playhead）→ 可重選 track 重新轉換 → 下載 BVH/VRMA → 複製分享連結
+
+---
+
 ## CLAUDE.md 概要
 
 > 實際 CLAUDE.md 在專案根目錄，以下為概要摘錄。
