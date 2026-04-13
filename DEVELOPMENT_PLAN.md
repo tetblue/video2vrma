@@ -800,20 +800,20 @@ error   → ERROR        → save ✓
 
 **Phase 7a：後端持久化基礎**
 
-- [ ] 7a.1 `task_manager.py`：TaskState 新增 `client_id: str`、`share_token: str`、`file_name: str` 欄位
-- [ ] 7a.2 `task_manager.py`：新增 `to_persist_dict()` 方法（序列化結果欄位，排除暫態 progress/message）
-- [ ] 7a.3 `task_manager.py`：新增 `@classmethod from_persist_dict()` 方法（從 JSON 重建 TaskState）
-- [ ] 7a.4 `task_manager.py`：新增 `history_dir: Path` 參數，`save_history(task_id)` 方法（atomic write：寫 .tmp → rename）
-- [ ] 7a.5 `task_manager.py`：新增 `_share_index: dict[str, str]`（share_token → task_id），`get_by_share_token()` 方法
-- [ ] 7a.6 `task_manager.py`：新增 `load_history()` 方法（啟動時掃描 `history_dir/*.json`，跳過 >7 天或檔案遺失的）
-- [ ] 7a.7 `task_manager.py`：新增 `delete_task(task_id)` 方法（刪記憶體 + 所有檔案 + work dir + JSON + share_index）
-- [ ] 7a.8 `task_manager.py`：`cleanup_old_tasks` 改 7 天（`max_age_hours=168`），加刪 JSON + work dir + share_index
-- [ ] 7a.9 `main.py`：建立 `history_dir = TMP / "history"`，傳給 TaskManager，啟動時呼叫 `load_history()`
-- [ ] 7a.10 `upload.py`：讀 `X-Client-Id` header，設定 `task.client_id` / `share_token` / `file_name`，呼叫 `save_history()`
-- [ ] 7a.11 `upload.py`：`UploadResponse` 加 `share_token: str`
-- [ ] 7a.12 `gpu_worker.py`：detect 完成（TRACKS_READY）、convert 完成（BVH_READY）、error 時呼叫 `save_history()`
-- [ ] 7a.13 `schemas.py`：新增 `HistoryItem`、`SharedTaskResponse` 模型，更新 `UploadResponse`
-- [ ] 7a.14 `tests/test_api.py`：更新 stub + 新增持久化相關測試
+- [x] 7a.1 `task_manager.py`：TaskState 新增 `client_id: str`、`share_token: str`、`file_name: str` 欄位
+- [x] 7a.2 `task_manager.py`：新增 `to_persist_dict()` 方法（序列化結果欄位，排除暫態 progress/message）
+- [x] 7a.3 `task_manager.py`：新增 `@classmethod from_persist_dict()` 方法（從 JSON 重建 TaskState）
+- [x] 7a.4 `task_manager.py`：新增 `history_dir: Path` 參數，`save_history(task_id)` 方法（atomic write：寫 .tmp → rename）
+- [x] 7a.5 `task_manager.py`：新增 `_share_index: dict[str, str]`（share_token → task_id），`get_by_share_token()` 方法
+- [x] 7a.6 `task_manager.py`：新增 `load_history()` 方法（啟動時掃描 `history_dir/*.json`，跳過 >7 天或檔案遺失的）
+- [x] 7a.7 `task_manager.py`：新增 `delete_task(task_id)` 方法（刪記憶體 + 所有檔案 + work dir + JSON + share_index）
+- [x] 7a.8 `task_manager.py`：`cleanup_old_tasks` 改 7 天（`max_age_hours=168`），加刪 JSON + work dir + share_index
+- [x] 7a.9 `main.py`：建立 `history_dir = TMP / "history"`，傳給 TaskManager，啟動時呼叫 `load_history()`
+- [x] 7a.10 `upload.py`：讀 `X-Client-Id` header，設定 `task.client_id` / `share_token` / `file_name`，呼叫 `save_history()`
+- [x] 7a.11 `upload.py`：`UploadResponse` 加 `share_token: str`
+- [x] 7a.12 `gpu_worker.py`：detect 完成（TRACKS_READY）、convert 完成（BVH_READY）、error 時呼叫 `save_history()`
+- [x] 7a.13 `schemas.py`：新增 `HistoryItem`、`SharedTaskResponse` 模型，更新 `UploadResponse`
+- [x] 7a.14 `tests/test_api.py`：更新 stub + 新增持久化相關測試
 
 **驗收：** `pytest tests/ -x` 全過，curl `POST /api/upload` 回傳 `share_token`，重啟後端後 task 仍存在
 

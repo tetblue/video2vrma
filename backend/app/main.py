@@ -21,12 +21,15 @@ def create_app(pipeline_module=None) -> FastAPI:
 
     upload_dir = TMP / "uploads"
     work_dir = TMP / "tasks"
+    history_dir = TMP / "history"
     upload_dir.mkdir(parents=True, exist_ok=True)
     work_dir.mkdir(parents=True, exist_ok=True)
+    history_dir.mkdir(parents=True, exist_ok=True)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        app.state.task_manager = TaskManager()
+        app.state.task_manager = TaskManager(history_dir=history_dir)
+        app.state.task_manager.load_history()
         app.state.upload_dir = upload_dir
         app.state.gpu_worker = GPUWorker(
             task_manager=app.state.task_manager,

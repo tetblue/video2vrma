@@ -1,9 +1,10 @@
 import math
 import shutil
+import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, Request, UploadFile
 
 from app.models.schemas import UploadResponse
 
@@ -27,6 +28,7 @@ async def upload(
     file: UploadFile = File(...),
     start_time: Optional[float] = Form(None),
     end_time: Optional[float] = Form(None),
+    x_client_id: str = Header(""),
 ) -> UploadResponse:
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in ALLOWED_SUFFIXES:
@@ -40,10 +42,15 @@ async def upload(
     dest = upload_dir / f"{task_id}{suffix}"
     with dest.open("wb") as f:
         shutil.copyfileobj(file.file, f)
-    task_manager.tasks[task_id].video_path = str(dest)
+
+    task = task_manager.tasks[task_id]
+    task.video_path = str(dest)
+    task.client_id = x_client_id or uuid.uuid4().hex
+    task.share_token = uuid.uuid4().hex[:12]
+    task.file_name = file.filename or "unknown"
 
     fps = _probe_fps(dest)
-    task_manager.tasks[task_id].native_fps = fps
+    task.native_fps = fps
 
     start_frame = 0
     end_frame = -1
@@ -53,8 +60,9 @@ async def upload(
         if end_time is not None and end_time > 0:
             end_frame = math.ceil(end_time * fps)
 
-    task_manager.tasks[task_id].start_frame = start_frame
-    task_manager.tasks[task_id].end_frame = end_frame
+    task.start_frame = start_frame
+    task.end_frame = end_frame
 
+    task_manager.save_history(task_id)
     await task_manager.enqueue(task_id)
-    return UploadResponse(task_id=task_id)
+    return UploadResponse(task_id=task_id, share_token=task.share_token)

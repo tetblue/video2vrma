@@ -1,4 +1,5 @@
 import asyncio
+import json
 from pathlib import Path
 
 import pytest
@@ -62,15 +63,25 @@ def _wait_for(client, task_id, target_step, max_iters=50):
     raise AssertionError(f"task {task_id} never reached {target_step}; last={r.json()}")
 
 
-def test_upload_creates_task_and_runs_detect(client_and_stub, tmp_path):
-    client, stub = client_and_stub
-    fake_mp4 = tmp_path / "in.mp4"
+def _upload(client, tmp_path, filename="in.mp4", client_id="test-client-1"):
+    fake_mp4 = tmp_path / filename
     fake_mp4.write_bytes(b"\x00\x00\x00\x18ftypmp42")
     with fake_mp4.open("rb") as f:
-        r = client.post("/api/upload", files={"file": ("in.mp4", f, "video/mp4")})
+        r = client.post(
+            "/api/upload",
+            files={"file": (filename, f, "video/mp4")},
+            headers={"X-Client-Id": client_id},
+        )
     assert r.status_code == 200
-    task_id = r.json()["task_id"]
+    return r.json()
+
+
+def test_upload_creates_task_and_runs_detect(client_and_stub, tmp_path):
+    client, stub = client_and_stub
+    data = _upload(client, tmp_path)
+    task_id = data["task_id"]
     assert task_id
+    assert data["share_token"]
 
     status = _wait_for(client, task_id, "tracks_ready")
     assert status["progress"] == 1.0
@@ -88,10 +99,8 @@ def test_upload_rejects_bad_extension(client_and_stub, tmp_path):
 
 def test_full_flow_tracks_then_convert_then_download(client_and_stub, tmp_path):
     client, stub = client_and_stub
-    fake_mp4 = tmp_path / "in.mp4"
-    fake_mp4.write_bytes(b"\x00\x00\x00\x18ftypmp42")
-    with fake_mp4.open("rb") as f:
-        task_id = client.post("/api/upload", files={"file": ("in.mp4", f, "video/mp4")}).json()["task_id"]
+    data = _upload(client, tmp_path)
+    task_id = data["task_id"]
     _wait_for(client, task_id, "tracks_ready")
 
     r = client.get(f"/api/tasks/{task_id}/tracks")
@@ -132,10 +141,8 @@ def test_tracks_409_before_ready(client_and_stub, tmp_path, monkeypatch):
 
 def test_video_and_overlay_endpoints(client_and_stub, tmp_path):
     client, stub = client_and_stub
-    fake_mp4 = tmp_path / "in.mp4"
-    fake_mp4.write_bytes(b"\x00\x00\x00\x18ftypmp42")
-    with fake_mp4.open("rb") as f:
-        task_id = client.post("/api/upload", files={"file": ("in.mp4", f, "video/mp4")}).json()["task_id"]
+    data = _upload(client, tmp_path)
+    task_id = data["task_id"]
     _wait_for(client, task_id, "tracks_ready")
 
     r = client.get(f"/api/tasks/{task_id}/video")
@@ -158,10 +165,8 @@ def test_system_stats(client_and_stub):
 
 def test_websocket_snapshot(client_and_stub, tmp_path):
     client, _ = client_and_stub
-    fake_mp4 = tmp_path / "in.mp4"
-    fake_mp4.write_bytes(b"\x00\x00\x00\x18ftypmp42")
-    with fake_mp4.open("rb") as f:
-        task_id = client.post("/api/upload", files={"file": ("in.mp4", f, "video/mp4")}).json()["task_id"]
+    data = _upload(client, tmp_path)
+    task_id = data["task_id"]
     _wait_for(client, task_id, "tracks_ready")
 
     with client.websocket_connect(f"/api/ws/tasks/{task_id}") as ws:
@@ -169,3 +174,82 @@ def test_websocket_snapshot(client_and_stub, tmp_path):
         assert snap["type"] == "snapshot"
         assert snap["task_id"] == task_id
         assert snap["status"] == "tracks_ready"
+
+
+# --- Phase 7a: persistence tests ---
+
+def test_upload_returns_share_token(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    data = _upload(client, tmp_path)
+    assert "share_token" in data
+    assert len(data["share_token"]) == 12
+
+
+def test_history_json_created_after_detect(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    data = _upload(client, tmp_path)
+    task_id = data["task_id"]
+    _wait_for(client, task_id, "tracks_ready")
+
+    history_file = tmp_path / "history" / f"{task_id}.json"
+    assert history_file.exists()
+    record = json.loads(history_file.read_text(encoding="utf-8"))
+    assert record["task_id"] == task_id
+    assert record["status"] == "tracks_ready"
+    assert record["client_id"] == "test-client-1"
+    assert record["file_name"] == "in.mp4"
+    assert record["share_token"] == data["share_token"]
+
+
+def test_history_json_updated_after_convert(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    data = _upload(client, tmp_path)
+    task_id = data["task_id"]
+    _wait_for(client, task_id, "tracks_ready")
+
+    client.post(f"/api/tasks/{task_id}/convert", json={"track_id": 1, "fps": 30, "smoothing": False})
+
+    history_file = tmp_path / "history" / f"{task_id}.json"
+    record = json.loads(history_file.read_text(encoding="utf-8"))
+    assert record["status"] == "bvh_ready"
+    assert record["bvh_path"] is not None
+
+
+def test_share_index_lookup(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    data = _upload(client, tmp_path)
+    task_id = data["task_id"]
+    share_token = data["share_token"]
+    _wait_for(client, task_id, "tracks_ready")
+
+    tm = client.app.state.task_manager
+    task = tm.get_by_share_token(share_token)
+    assert task is not None
+    assert task.task_id == task_id
+
+
+def test_delete_task(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    data = _upload(client, tmp_path)
+    task_id = data["task_id"]
+    share_token = data["share_token"]
+    _wait_for(client, task_id, "tracks_ready")
+
+    tm = client.app.state.task_manager
+    assert tm.delete_task(task_id) is True
+    assert tm.get(task_id) is None
+    assert tm.get_by_share_token(share_token) is None
+    assert not (tmp_path / "history" / f"{task_id}.json").exists()
+
+
+def test_client_id_auto_generated_when_missing(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    fake_mp4 = tmp_path / "no_header.mp4"
+    fake_mp4.write_bytes(b"\x00\x00\x00\x18ftypmp42")
+    with fake_mp4.open("rb") as f:
+        r = client.post("/api/upload", files={"file": ("no_header.mp4", f, "video/mp4")})
+    assert r.status_code == 200
+    task_id = r.json()["task_id"]
+    tm = client.app.state.task_manager
+    task = tm.get(task_id)
+    assert task.client_id  # auto-generated, non-empty

@@ -48,6 +48,7 @@ class GPUWorker:
                 await self.task_manager.update_progress(
                     task_id, TaskStep.ERROR, 0.0, "偵測失敗", error=str(exc)
                 )
+                self.task_manager.save_history(task_id)
 
     async def _process_detect(self, task_id: str) -> None:
         task = self.task_manager.tasks[task_id]
@@ -89,6 +90,7 @@ class GPUWorker:
             1.0,
             f"偵測完成，找到 {len(task.tracks)} 個 track",
         )
+        self.task_manager.save_history(task_id)
 
     async def process_convert(
         self,
@@ -123,9 +125,11 @@ class GPUWorker:
             await self.task_manager.update_progress(
                 task_id, TaskStep.ERROR, 0.0, "BVH 轉換失敗", error=str(exc)
             )
+            self.task_manager.save_history(task_id)
             raise
 
         task.bvh_path = str(bvh_path)
         await self.task_manager.update_progress(
             task_id, TaskStep.BVH_READY, 1.0, "BVH 完成"
         )
+        self.task_manager.save_history(task_id)
