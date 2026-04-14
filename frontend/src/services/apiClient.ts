@@ -134,6 +134,14 @@ export function wsUrl(taskId: string): string {
   return `${base}/api/ws/tasks/${taskId}`;
 }
 
+export type QueuedTaskBrief = {
+  task_id: string;
+  file_name: string;
+  client_id: string;
+  enqueued_at: string | null;
+  position: number;
+};
+
 export type SystemStats = {
   cpu_pct: number;
   gpu_name: string | null;
@@ -143,6 +151,7 @@ export type SystemStats = {
   tasks_queued: number;
   tasks_active: number;
   tasks_total: number;
+  queued_tasks: QueuedTaskBrief[];
 };
 
 export async function getSystemStats(): Promise<SystemStats> {

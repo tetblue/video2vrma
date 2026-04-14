@@ -50,6 +50,7 @@ class TaskState:
     clip_start_time: float = 0.0
     clip_end_time: float = 0.0
     converted_track_id: int | None = None
+    enqueued_at: datetime | None = None
 
     def to_status_dict(self) -> dict[str, Any]:
         return {
@@ -86,6 +87,7 @@ class TaskState:
             "clip_start_time": self.clip_start_time,
             "clip_end_time": self.clip_end_time,
             "converted_track_id": self.converted_track_id,
+            "enqueued_at": self.enqueued_at.isoformat() if self.enqueued_at else None,
         }
 
     @classmethod
@@ -119,6 +121,7 @@ class TaskState:
             clip_start_time=d.get("clip_start_time", 0.0),
             clip_end_time=d.get("clip_end_time", 0.0),
             converted_track_id=d.get("converted_track_id"),
+            enqueued_at=_parse_dt("enqueued_at"),
         )
 
 
@@ -146,6 +149,9 @@ class TaskManager:
         return self.tasks.get(task_id)
 
     async def enqueue(self, task_id: str) -> None:
+        task = self.tasks.get(task_id)
+        if task is not None:
+            task.enqueued_at = datetime.now()
         await self.queue.put(task_id)
 
     async def update_progress(

@@ -168,6 +168,39 @@ def test_system_stats(client_and_stub):
     assert "cpu_pct" in data
     assert isinstance(data["tasks_queued"], int)
     assert isinstance(data["tasks_total"], int)
+    assert "queued_tasks" in data
+    assert isinstance(data["queued_tasks"], list)
+
+
+# --- Phase 6e: queued_tasks observability ---
+
+def test_system_stats_includes_queued_task_details(client_and_stub, tmp_path):
+    """上傳後立刻（任務處理完成前）打 /system/stats 應看到自己排隊中。"""
+    client, _ = client_and_stub
+    # 直接透過 task_manager 手動建一個 stuck 在 QUEUED 狀態的 task，
+    # 避免 race（stub pipeline 跑很快，任務可能已經 tracks_ready）
+    tm = client.app.state.task_manager
+    from datetime import datetime
+    t1 = tm.create_task("v1.mp4")
+    tm.tasks[t1].file_name = "dance.mp4"
+    tm.tasks[t1].client_id = "test-owner"
+    tm.tasks[t1].enqueued_at = datetime.now()
+    t2 = tm.create_task("v2.mp4")
+    tm.tasks[t2].file_name = "jump.mp4"
+    tm.tasks[t2].client_id = "other-user"
+    tm.tasks[t2].enqueued_at = datetime.now()
+
+    r = client.get("/api/system/stats")
+    assert r.status_code == 200
+    body = r.json()
+    ql = body["queued_tasks"]
+    assert len(ql) >= 2
+    # 位置從 1 開始
+    by_id = {q["task_id"]: q for q in ql}
+    assert by_id[t1]["position"] >= 1
+    assert by_id[t1]["file_name"] == "dance.mp4"
+    assert by_id[t1]["client_id"] == "test-owner"
+    assert by_id[t1]["enqueued_at"] is not None
 
 
 def test_websocket_snapshot(client_and_stub, tmp_path):
