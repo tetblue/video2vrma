@@ -990,6 +990,42 @@ interpolation.py: axis-angle → quaternion → SLERP 補幀 → axis-angle
 
 ---
 
+### Phase 10：PlayBar UX + 雙向 playhead 同步 + detect/overlay 真實進度
+
+**目標：** 三項 UX 改進 — (1) PlaybackBar 加粗並加 thumb 指標、支援 pointer drag；(2) 原始影片與骨架 overlay 兩條 playhead 拖拉互相同步；(3) PHALP 偵測與骨架 overlay render 兩階段都顯示真實百分比進度。
+
+**Phase 10a：PlaybackBar UI（加粗 + thumb + drag）**
+
+- [x] 10a.1 `PlaybackBar.tsx`：容器高度 6px → 10px，加 `padding: 4px 0` 擴大點擊區
+- [x] 10a.2 `PlaybackBar.tsx`：新增圓形 thumb（`width/height: 14px`、白邊綠底、`position: absolute; left: ${pct}%`）
+- [x] 10a.3 `PlaybackBar.tsx`：改 click 為 pointer drag（`onPointerDown` + `setPointerCapture` + `onPointerMove` 內持續 onSeek；`onPointerUp` 釋放）
+- [x] 10a.4 `PlaybackBar.tsx`：拖拉中把 fill transition 關掉避免尾巴落後，結束後開回
+
+**驗收：** thumb 指標明顯、可連續拖拉、放開不回彈、click 仍可跳轉
+
+**Phase 10b：雙向 playhead 同步**
+
+- [ ] 10b.1 `ReviewPanel.tsx`：`onVideoSeek` 額外同步 `overlayRef.current.currentTime = localT`，並更新 VRM 時間（`localT - trackOffsetTime`）
+- [ ] 10b.2 `ReviewPanel.tsx`：`onOverlaySeek` 額外同步 `videoRef.current.currentTime = clipStart + overlayT`
+- [ ] 10b.3 `ReviewPanel.tsx`：啟用條件放寬為「原始影片與 overlay 都載入」，不再只限 `isSyncWithClip`
+
+**驗收：** 拖原始影片 playbar → overlay + VRM 跟動；反向拖 overlay → 原始影片跟動
+
+**Phase 10c：Detect / Overlay 真實進度**
+
+- [ ] 10c.1 `preview.py`：`render_overlay_video` 新增 `progress_cb` 參數，for 迴圈每幀 `(i+1)/len(frame_keys)` 經 throttle 後呼叫
+- [ ] 10c.2 `preview.py`：新增 `_throttled(cb, min_delta=0.02, min_interval=0.3)` 工具（2% 或 300ms 才推）
+- [ ] 10c.3 `phalp_service.py`：新增 `_patch_tqdm_progress(cb)` context manager，proxy `tqdm.auto.tqdm.update` 抓 `n/total`
+- [ ] 10c.4 `phalp_service.py`：`run_phalp` 新增 `progress_cb` 參數，包住 `_cached_tracker.track()`
+- [ ] 10c.5 `pipeline.py`：`step1_detect` / `step1b_overlay` 透傳 `progress_cb`
+- [ ] 10c.6 `gpu_worker.py`：新增 `_make_progress_bridge(task_id, step, base, span)` helper 用 `asyncio.run_coroutine_threadsafe` 橋接 sync→async
+- [ ] 10c.7 `gpu_worker.py`：`_process_detect` 分別為 DETECTING / RENDERING_OVERLAY 建立 bridge，移除硬編 0.0 / 0.5 跳點
+- [ ] 10c.8 `tests/test_api.py`：`StubPipeline.step1_detect` / `step1b_overlay` 接受並忽略 `progress_cb=...` kwarg
+
+**驗收：** 上傳短影片 → ProgressDisplay 在 detect 與 overlay 階段皆顯示平滑遞增百分比；若 tqdm patch 對該 PHALP 版本失效，detect 仍維持 0→1 跳動（graceful degrade），overlay 必定有真實進度
+
+---
+
 ## CLAUDE.md 概要
 
 > 實際 CLAUDE.md 在專案根目錄，以下為概要摘錄。
