@@ -55,6 +55,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
   const [overlayCurrentTime, setOverlayCurrentTime] = useState(0);
   const [vrmaDuration, setVrmaDuration] = useState(0);
   const rafRef = useRef<number>(0);
+  const prevSyncStartRef = useRef<number | null>(null);
 
   const onVrmReady = useCallback((d: number) => setVrmaDuration(d), []);
 
@@ -102,22 +103,28 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
     ? syncOverlayStart + vrmaDuration
     : (overlayDuration || syncOverlayStart);
 
-  // 新 VRMA 載入（vrmaDuration 變更）後：若 video 位置已經不在新視窗內，
-  // seek 回新視窗起點；VRM 也對齊。
+  // 同步視窗變動時（換 track / 新 VRMA 載入 / 首次進同步模式）→ 一律對齊三面板到新視窗起點。
+  // 只要 syncVideoStart 變了就跳；不要等到 currentTime 跑出範圍才動，否則同一範圍內切 track 會看起來沒反應。
   useEffect(() => {
-    if (!isSyncWithClip || vrmaDuration <= 0) return;
+    if (!isSyncWithClip) {
+      prevSyncStartRef.current = null;
+      return;
+    }
+    const prev = prevSyncStartRef.current;
+    const windowChanged = prev !== syncVideoStart;
+    prevSyncStartRef.current = syncVideoStart;
     const v = videoRef.current;
     if (!v) return;
-    if (v.currentTime < syncVideoStart || v.currentTime >= syncVideoEnd) {
-      v.currentTime = syncVideoStart;
-      setCurrentTime(syncVideoStart);
-      if (overlayRef.current) {
-        overlayRef.current.currentTime = syncOverlayStart;
-        setOverlayCurrentTime(syncOverlayStart);
-      }
-      vrmRef.current?.setTime(0);
+    const outOfRange = v.currentTime < syncVideoStart || v.currentTime >= syncVideoEnd;
+    if (!windowChanged && !outOfRange) return;
+    v.currentTime = syncVideoStart;
+    setCurrentTime(syncVideoStart);
+    if (overlayRef.current) {
+      overlayRef.current.currentTime = syncOverlayStart;
+      setOverlayCurrentTime(syncOverlayStart);
     }
-  }, [isSyncWithClip, vrmaDuration, syncVideoStart, syncVideoEnd, syncOverlayStart]);
+    vrmRef.current?.setTime(0);
+  }, [isSyncWithClip, syncVideoStart, syncVideoEnd, syncOverlayStart]);
 
   const onVideoLoaded = useCallback(() => {
     const v = videoRef.current;

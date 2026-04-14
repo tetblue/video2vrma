@@ -272,10 +272,10 @@ export default function Home() {
     ? { file: selectedFile, disabled: busy, onStart: onStartConvert }
     : null;
 
-  // trackTiming 對應 VRMA 實際內容的 track（convertedTrackId）。若尚未轉換，
-  // 退回 selectedTrack 讓 preview 先顯示選中 track 的範圍提示。
-  const timingTrackId = convertedTrackId ?? selectedTrack;
-  const timingTrackInfo = tracks?.find((t) => t.track_id === timingTrackId);
+  // trackTiming 跟著 selectedTrack 走：使用者切 TrackSelector 時立即更新三面板
+  // 同步視窗（video/overlay jump 到新 track 範圍）；若選中的 track 跟已轉換的
+  // convertedTrackId 不同，VRM 視覺上會暫時對不上（提示使用者需要 re-convert）。
+  const timingTrackInfo = tracks?.find((t) => t.track_id === selectedTrack);
   const trackTiming = timingTrackInfo
     ? {
         startFrame: timingTrackInfo.start_frame,
@@ -361,6 +361,11 @@ export default function Home() {
       {tracks && tracks.length > 0 && (
         <section style={{ marginBottom: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <ConversionPanel disabled={!canConvert} defaultFps={Math.round(detectionFps / currentFrameStep)} onConvert={onConvert} />
+          {vrmaBlob && convertedTrackId != null && selectedTrack !== convertedTrackId && (
+            <span style={{ fontSize: "0.82em", color: "#c80", background: "#fff7e0", padding: "4px 10px", borderRadius: 4, border: "1px solid #e0b050" }}>
+              ⚠ VRM 仍是 Track {convertedTrackId} 的內容，請重新轉換以套用 Track {selectedTrack}
+            </span>
+          )}
           {currentFrameStep > 1 && clipInfo?.file && (
             <button
               onClick={() => onStartConvert(clipInfo.file!, clipInfo.start, clipInfo.end, 1)}
