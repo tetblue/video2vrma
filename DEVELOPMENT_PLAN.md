@@ -768,11 +768,11 @@ video2vrma/
 
 目前 `page.tsx:42, 387-389` 的 `pageError` 直接用 `<pre>` 印，無法 dismiss；`page.tsx:262` 複製分享連結用 `alert()`；`apiClient.downloadBvhText` / `deleteTask` 沒走 `jsonOrThrow`，錯誤訊息退化成純 status code。
 
-- [ ] 6b.1 新建 `frontend/src/components/ErrorBanner.tsx`：`{ message, variant?: "error"|"info", onDismiss }` 可關閉橫幅；替換 `page.tsx` 的 `<pre>`
-- [ ] 6b.2 `apiClient.ts` `downloadBvhText`、`deleteTask` 改走 `jsonOrThrow`（或同等的錯誤 parse）
-- [ ] 6b.3 `page.tsx` 分享連結複製改用 ErrorBanner 的 info 變體（3 秒後自動消失），移除 `alert()`
-- [ ] 6b.4 `SystemStats.tsx` 「backend 離線」狀態亦可透過 callback 發 ErrorBanner
-- [ ] 6b.5 `page.tsx` 既有 5 處 `setPageError(String(err))` 抽成 `reportError(err)` helper（對 `TypeError: Failed to fetch` 給更友善訊息）
+- [x] 6b.1 新建 `frontend/src/components/ErrorBanner.tsx`：`{ message, variant?: "error"|"info", onDismiss }` 可關閉橫幅；替換 `page.tsx` 的 `<pre>`
+- [x] 6b.2 `apiClient.ts` `downloadBvhText`、`deleteTask` 改走 `jsonOrThrow`（或同等的錯誤 parse）
+- [x] 6b.3 `page.tsx` 分享連結複製改用 ErrorBanner 的 info 變體（3 秒後自動消失），移除 `alert()`
+- [x] 6b.4 `SystemStats.tsx` 「backend 離線」保留既有內聯 chip 顯示（避免雙重提示，未另外發 banner）
+- [x] 6b.5 `page.tsx` 既有 5 處 `setPageError(String(err))` 抽成 `reportError(err)` helper（對 `TypeError: Failed to fetch` 給更友善訊息）
 
 **驗收：** 觸發各種錯誤（network fail、backend 500、非法副檔名）均由同一橫幅顯示且可 dismiss；分享連結複製不再跳 `alert()`；`tsc --noEmit` 通過
 
@@ -782,12 +782,12 @@ video2vrma/
 
 `upload.py` 缺檔案大小上限、`start_time`/`end_time` 順序與上界檢查、`frame_step` 只 clamp 下界；`schemas.py` 的 `ConvertRequest.track_id` 無範圍驗證。
 
-- [ ] 6c.1 `backend/app/config.py` 新增 `MAX_UPLOAD_BYTES = 2 * 1024**3`（2 GB）
-- [ ] 6c.2 `upload.py`：用 `Content-Length` header 預檢，串流寫檔時每 N bytes 累計檢查；超過回 `413`
-- [ ] 6c.3 `upload.py`：驗證 `start_time < end_time`、`end_time` 不超過影片總秒數；違反回 400
-- [ ] 6c.4 `schemas.py`：`ConvertRequest.track_id = Field(ge=0)`；`upload.py` 手動檢查 `frame_step in {1, 3, 5}`
-- [ ] 6c.5 前端 `src/lib/uploadLimits.ts`（新，與後端同 2 GB 常數）；`VideoUploader.tsx` 本地擋下過大檔案
-- [ ] 6c.6 `backend/tests/test_api.py` 新增 3 case：超大檔（mock Content-Length）、`start > end`、非法 frame_step
+- [x] 6c.1 `backend/app/config.py` 新增 `MAX_UPLOAD_BYTES = 2 * 1024**3`（2 GB）
+- [x] 6c.2 `upload.py`：用 `Content-Length` header 預檢，串流寫檔時每 N bytes 累計檢查；超過回 `413`
+- [x] 6c.3 `upload.py`：驗證 `start_time < end_time`、`end_time` 不超過影片總秒數；違反回 400
+- [x] 6c.4 `schemas.py`：`ConvertRequest.track_id = Field(ge=0)`；`upload.py` 手動檢查 `frame_step in {1, 3, 5}`
+- [x] 6c.5 前端 `src/lib/uploadLimits.ts`（新，與後端同 2 GB 常數）；`VideoUploader.tsx` 本地擋下過大檔案
+- [x] 6c.6 `backend/tests/test_api.py` 新增 3 case：超大檔（mock Content-Length）、`start > end`、非法 frame_step
 
 **驗收：** `pytest backend/tests/ -q` 全過；上傳 3 GB 假檔立即回 413；前端選超大檔即時提示
 
@@ -797,11 +797,11 @@ video2vrma/
 
 後端已全面 `logging.getLogger(__name__)` 但沒 `basicConfig`，純靠 uvicorn 預設 handler（偶爾吞 `app.*` logger），且無檔案持久化。
 
-- [ ] 6d.1 `backend/app/config.py` 新增 `LOG_DIR = TMP / "logs"`
-- [ ] 6d.2 `main.py` 在 `create_app` 內（lifespan 之前）設 `logging.basicConfig(level=INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s", handlers=[StreamHandler(), RotatingFileHandler(LOG_DIR/"backend.log", maxBytes=5MB, backupCount=3)])`
-- [ ] 6d.3 `WORKFLOW.md` 補註：uvicorn 啟動不要用 `--log-config` 蓋掉；必要時用 `--log-level info`
-- [ ] 6d.4 `.gitignore` 新增 `tmp/logs/`
-- [ ] 6d.5 `phalp_service.py`、`pipeline.py`、`gpu_worker.py`、`task_manager.py` 檢查 log level：detect/convert 關鍵里程碑（開始、結束、耗時）用 `log.info`，tqdm / 輸出路徑細節降到 `log.debug`
+- [x] 6d.1 `backend/app/config.py` 新增 `LOG_DIR = TMP / "logs"`
+- [x] 6d.2 `main.py` 在 `create_app` 內（lifespan 之前）設 `logging.basicConfig(level=INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s", handlers=[StreamHandler(), RotatingFileHandler(LOG_DIR/"backend.log", maxBytes=5MB, backupCount=3)])`
+- [x] 6d.3 不需修改 WORKFLOW.md：預設 uvicorn 啟動不會覆蓋 `logging.basicConfig`，且 `_configure_logging()` 冪等
+- [x] 6d.4 不需改 `.gitignore`：`tmp/` 已 ignore，`tmp/logs/` 自動被涵蓋
+- [x] 6d.5 `phalp_service.py`、`pipeline.py`、`gpu_worker.py`、`task_manager.py` 檢查 log level：detect/convert 關鍵里程碑（開始、結束、耗時）用 `log.info`，tqdm / 輸出路徑細節降到 `log.debug`
 
 **驗收：** `tmp/logs/backend.log` 自動產生；偵測一個短片後 log 含 detect/convert 時戳；log 檔輪替到 6 MB 時會滾到 `.1`
 
@@ -811,11 +811,11 @@ video2vrma/
 
 目前 `system.py` 只回計數，使用者上傳後看不到自己排第幾、前面排了誰。
 
-- [ ] 6e.1 `task_manager.py` `TaskState` 新增 `enqueued_at: datetime | None = None`；`enqueue()` 設值；加入 `to_persist_dict` / `from_persist_dict`
-- [ ] 6e.2 `routers/system.py`：`SystemStats` 新增 `queued_tasks: list[QueuedTaskBrief]`（含 `task_id, file_name, enqueued_at, position`）
-- [ ] 6e.3 `system.py` 依 `enqueued_at` 排序算 `position`（1-based）
-- [ ] 6e.4 `apiClient.ts`：`SystemStats` 型別加 `queued_tasks`；新增 `QueuedTaskBrief` 型別
-- [ ] 6e.5 `SystemStats.tsx`：若 `queued_tasks.length > 0` 展開摺疊面板列出「檔名 · 第 N 位」，自己 `clientId` 對應的 entry 高亮
+- [x] 6e.1 `task_manager.py` `TaskState` 新增 `enqueued_at: datetime | None = None`；`enqueue()` 設值；加入 `to_persist_dict` / `from_persist_dict`
+- [x] 6e.2 `routers/system.py`：`SystemStats` 新增 `queued_tasks: list[QueuedTaskBrief]`（含 `task_id, file_name, enqueued_at, position`）
+- [x] 6e.3 `system.py` 依 `enqueued_at` 排序算 `position`（1-based）
+- [x] 6e.4 `apiClient.ts`：`SystemStats` 型別加 `queued_tasks`；新增 `QueuedTaskBrief` 型別
+- [x] 6e.5 `SystemStats.tsx`：若 `queued_tasks.length > 0` 展開摺疊面板列出「檔名 · 第 N 位」，自己 `clientId` 對應的 entry 高亮
 - [ ] 6e.6（可選）預估等待時間：用過去 N 筆 `detect_elapsed_sec` 平均 × `position` 顯示
 
 **驗收：** 同時上傳 2~3 支影片 → SystemStats 面板列出排隊檔名 + 位置；自己的 task 有視覺高亮
