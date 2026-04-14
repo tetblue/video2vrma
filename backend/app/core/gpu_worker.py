@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
@@ -45,6 +46,9 @@ class GPUWorker:
                 raise
             except Exception as exc:
                 log.exception("detect failed for task %s", task_id)
+                task = self.task_manager.tasks.get(task_id)
+                if task is not None and task.detect_finished_at is None:
+                    task.detect_finished_at = datetime.now()
                 await self.task_manager.update_progress(
                     task_id, TaskStep.ERROR, 0.0, "偵測失敗", error=str(exc)
                 )
@@ -55,6 +59,7 @@ class GPUWorker:
         if task.video_path is None:
             raise RuntimeError(f"task {task_id} has no video_path")
 
+        task.detect_started_at = datetime.now()
         await self.task_manager.update_progress(
             task_id, TaskStep.DETECTING, 0.0, "PHALP 偵測中…"
         )
@@ -85,6 +90,7 @@ class GPUWorker:
             )
             task.overlay_path = str(overlay)
 
+        task.detect_finished_at = datetime.now()
         await self.task_manager.update_progress(
             task_id,
             TaskStep.TRACKS_READY,
@@ -106,6 +112,8 @@ class GPUWorker:
         if task.pkl_path is None:
             raise RuntimeError(f"task {task_id} has no pkl yet (status={task.status})")
 
+        task.convert_started_at = datetime.now()
+        task.convert_finished_at = None
         await self.task_manager.update_progress(
             task_id, TaskStep.CONVERTING, 0.5, "BVH 轉換中…"
         )
@@ -123,6 +131,7 @@ class GPUWorker:
             )
         except Exception as exc:
             log.exception("convert failed for task %s", task_id)
+            task.convert_finished_at = datetime.now()
             await self.task_manager.update_progress(
                 task_id, TaskStep.ERROR, 0.0, "BVH 轉換失敗", error=str(exc)
             )
@@ -130,6 +139,7 @@ class GPUWorker:
             raise
 
         task.bvh_path = str(bvh_path)
+        task.convert_finished_at = datetime.now()
         await self.task_manager.update_progress(
             task_id, TaskStep.BVH_READY, 1.0, "BVH 完成"
         )

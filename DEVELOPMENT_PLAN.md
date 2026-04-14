@@ -947,14 +947,14 @@ interpolation.py: axis-angle → quaternion → SLERP 補幀 → axis-angle
 後端：TaskState 新增 4 個 datetime 欄位追蹤偵測/轉換的起止時間，gpu_worker 在狀態轉換點設定。
 前端：HistoryPanel 顯示耗時，ProgressDisplay 即時顯示已耗時秒數。
 
-- [ ] 9a.1 `task_manager.py`：TaskState 新增 `detect_started_at`、`detect_finished_at`、`convert_started_at`、`convert_finished_at`（datetime | None），加入 `to_persist_dict` / `from_persist_dict`
-- [ ] 9a.2 `gpu_worker.py`：DETECTING 開始設 `detect_started_at`，TRACKS_READY 設 `detect_finished_at`，CONVERTING 設 `convert_started_at`，BVH_READY 設 `convert_finished_at`，ERROR 設對應 finished_at
-- [ ] 9a.3 `schemas.py`：HistoryItem / SharedTaskResponse 新增 `detect_elapsed_sec: float | None`、`convert_elapsed_sec: float | None`
-- [ ] 9a.4 `routers/history.py`：回傳時計算 `(finished - started).total_seconds()`
-- [ ] 9a.5 `apiClient.ts`：型別加 `detect_elapsed_sec` / `convert_elapsed_sec`
-- [ ] 9a.6 `HistoryPanel.tsx`：每筆記錄顯示耗時（如 "detect 45s | convert 3s"）
-- [ ] 9a.7 `ProgressDisplay.tsx`：轉換中即時顯示已耗時秒數（useEffect + interval）
-- [ ] 9a.8 `tests/test_api.py`：驗證時間欄位存在
+- [x] 9a.1 `task_manager.py`：TaskState 新增 `detect_started_at`、`detect_finished_at`、`convert_started_at`、`convert_finished_at`（datetime | None），加入 `to_persist_dict` / `from_persist_dict`
+- [x] 9a.2 `gpu_worker.py`：DETECTING 開始設 `detect_started_at`，TRACKS_READY 設 `detect_finished_at`，CONVERTING 設 `convert_started_at`，BVH_READY 設 `convert_finished_at`，ERROR 設對應 finished_at
+- [x] 9a.3 `schemas.py`：HistoryItem / SharedTaskResponse 新增 `detect_elapsed_sec: float | None`、`convert_elapsed_sec: float | None`
+- [x] 9a.4 `routers/history.py`：回傳時計算 `(finished - started).total_seconds()`
+- [x] 9a.5 `apiClient.ts`：型別加 `detect_elapsed_sec` / `convert_elapsed_sec`
+- [x] 9a.6 `HistoryPanel.tsx`：每筆記錄顯示耗時（如 "detect 45s | convert 3s"）
+- [x] 9a.7 `ProgressDisplay.tsx`：轉換中即時顯示已耗時秒數（useEffect + interval）
+- [x] 9a.8 `tests/test_api.py`：驗證時間欄位存在
 
 **驗收：** 偵測/轉換完成後 history 正確顯示耗時；轉換中 ProgressDisplay 即時計時
 

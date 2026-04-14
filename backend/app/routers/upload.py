@@ -64,6 +64,8 @@ async def upload(
     task.start_frame = start_frame
     task.end_frame = end_frame
     task.frame_step = max(1, frame_step or 1)
+    task.clip_start_time = float(start_time) if start_time and start_time > 0 else 0.0
+    task.clip_end_time = float(end_time) if end_time and end_time > 0 else 0.0
 
     task_manager.save_history(task_id)
     await task_manager.enqueue(task_id)

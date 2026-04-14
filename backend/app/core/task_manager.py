@@ -43,6 +43,12 @@ class TaskState:
     client_id: str = ""
     share_token: str = ""
     file_name: str = ""
+    detect_started_at: datetime | None = None
+    detect_finished_at: datetime | None = None
+    convert_started_at: datetime | None = None
+    convert_finished_at: datetime | None = None
+    clip_start_time: float = 0.0
+    clip_end_time: float = 0.0
 
     def to_status_dict(self) -> dict[str, Any]:
         return {
@@ -72,10 +78,20 @@ class TaskState:
             "frame_step": self.frame_step,
             "error": self.error,
             "created_at": self.created_at.isoformat(),
+            "detect_started_at": self.detect_started_at.isoformat() if self.detect_started_at else None,
+            "detect_finished_at": self.detect_finished_at.isoformat() if self.detect_finished_at else None,
+            "convert_started_at": self.convert_started_at.isoformat() if self.convert_started_at else None,
+            "convert_finished_at": self.convert_finished_at.isoformat() if self.convert_finished_at else None,
+            "clip_start_time": self.clip_start_time,
+            "clip_end_time": self.clip_end_time,
         }
 
     @classmethod
     def from_persist_dict(cls, d: dict) -> "TaskState":
+        def _parse_dt(key: str) -> datetime | None:
+            v = d.get(key)
+            return datetime.fromisoformat(v) if v else None
+
         return cls(
             task_id=d["task_id"],
             status=TaskStep(d.get("status", "error")),
@@ -94,6 +110,12 @@ class TaskState:
             client_id=d.get("client_id", ""),
             share_token=d.get("share_token", ""),
             file_name=d.get("file_name", ""),
+            detect_started_at=_parse_dt("detect_started_at"),
+            detect_finished_at=_parse_dt("detect_finished_at"),
+            convert_started_at=_parse_dt("convert_started_at"),
+            convert_finished_at=_parse_dt("convert_finished_at"),
+            clip_start_time=d.get("clip_start_time", 0.0),
+            clip_end_time=d.get("clip_end_time", 0.0),
         )
 
 

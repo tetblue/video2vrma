@@ -7,6 +7,12 @@ from app.models.schemas import HistoryItem, SharedTaskResponse, TrackInfo
 router = APIRouter()
 
 
+def _elapsed(start, end) -> float | None:
+    if start is None or end is None:
+        return None
+    return round((end - start).total_seconds(), 2)
+
+
 @router.get("/history", response_model=list[HistoryItem])
 async def list_history(
     request: Request,
@@ -30,6 +36,10 @@ async def list_history(
             has_bvh=bool(t.bvh_path and Path(t.bvh_path).exists()),
             has_overlay=bool(t.overlay_path and Path(t.overlay_path).exists()),
             error=t.error,
+            detect_elapsed_sec=_elapsed(t.detect_started_at, t.detect_finished_at),
+            convert_elapsed_sec=_elapsed(t.convert_started_at, t.convert_finished_at),
+            clip_start_time=t.clip_start_time,
+            clip_end_time=t.clip_end_time,
         )
         for t in items
     ]
@@ -56,4 +66,8 @@ async def get_shared_task(
         tracks=tracks,
         detection_fps=int(round(task.native_fps)) if task.tracks else None,
         total_frames=task.total_frames if task.tracks else None,
+        detect_elapsed_sec=_elapsed(task.detect_started_at, task.detect_finished_at),
+        convert_elapsed_sec=_elapsed(task.convert_started_at, task.convert_finished_at),
+        clip_start_time=task.clip_start_time,
+        clip_end_time=task.clip_end_time,
     )

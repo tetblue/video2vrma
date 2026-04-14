@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ConversionPanel } from "@/components/ConversionPanel";
-import { HistoryPanel } from "@/components/HistoryPanel";
+import { HistoryPanel, type LoadTaskPayload } from "@/components/HistoryPanel";
 import { ProgressDisplay } from "@/components/ProgressDisplay";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { SystemStats } from "@/components/SystemStats";
@@ -154,13 +154,15 @@ export default function Home() {
   );
 
   const onLoadTask = useCallback(
-    async (loadTaskId: string, loadFileName: string) => {
+    async (payload: LoadTaskPayload) => {
+      const loadTaskId = payload.taskId;
+      const loadFileName = payload.fileName;
       if (loadTaskId === taskId) return;
       setSelectedFile(null);
       setClipInfo(null);
       setTaskId(loadTaskId);
       setFileName(loadFileName);
-      setShareToken(null);
+      setShareToken(payload.shareToken || null);
       setTracks(null);
       setSelectedTrack(null);
       setBvhText(null);

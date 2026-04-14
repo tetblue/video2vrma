@@ -48,6 +48,10 @@ class HistoryItem(BaseModel):
     has_bvh: bool
     has_overlay: bool
     error: str | None = None
+    detect_elapsed_sec: float | None = None
+    convert_elapsed_sec: float | None = None
+    clip_start_time: float = 0.0
+    clip_end_time: float = 0.0
 
 
 class SharedTaskResponse(BaseModel):
@@ -61,3 +65,7 @@ class SharedTaskResponse(BaseModel):
     tracks: list[TrackInfo] | None = None
     detection_fps: int | None = None
     total_frames: int | None = None
+    detect_elapsed_sec: float | None = None
+    convert_elapsed_sec: float | None = None
+    clip_start_time: float = 0.0
+    clip_end_time: float = 0.0

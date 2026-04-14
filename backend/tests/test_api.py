@@ -306,6 +306,27 @@ def test_delete_task_api(client_and_stub, tmp_path):
     assert r.status_code == 404
 
 
+def test_history_has_elapsed_times(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    data = _upload(client, tmp_path, client_id="elapsed-user")
+    task_id = data["task_id"]
+    _wait_for(client, task_id, "tracks_ready")
+
+    client.post(f"/api/tasks/{task_id}/convert", json={"track_id": 1, "fps": 30, "smoothing": False})
+
+    r = client.get("/api/history", headers={"X-Client-Id": "elapsed-user"})
+    assert r.status_code == 200
+    items = r.json()
+    assert len(items) == 1
+    it = items[0]
+    assert it["detect_elapsed_sec"] is not None
+    assert it["detect_elapsed_sec"] >= 0
+    assert it["convert_elapsed_sec"] is not None
+    assert it["convert_elapsed_sec"] >= 0
+    assert "clip_start_time" in it
+    assert "clip_end_time" in it
+
+
 def test_client_id_auto_generated_when_missing(client_and_stub, tmp_path):
     client, _ = client_and_stub
     fake_mp4 = tmp_path / "no_header.mp4"
@@ -317,6 +338,34 @@ def test_client_id_auto_generated_when_missing(client_and_stub, tmp_path):
     tm = client.app.state.task_manager
     task = tm.get(task_id)
     assert task.client_id  # auto-generated, non-empty
+
+
+def test_upload_persists_clip_times(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    fake_mp4 = tmp_path / "clip.mp4"
+    fake_mp4.write_bytes(b"\x00\x00\x00\x18ftypmp42")
+    with fake_mp4.open("rb") as f:
+        r = client.post(
+            "/api/upload",
+            files={"file": ("clip.mp4", f, "video/mp4")},
+            data={"start_time": "1.5", "end_time": "3.5"},
+            headers={"X-Client-Id": "clip-user"},
+        )
+    assert r.status_code == 200
+    task_id = r.json()["task_id"]
+    share_token = r.json()["share_token"]
+
+    tm = client.app.state.task_manager
+    task = tm.get(task_id)
+    assert task.clip_start_time == 1.5
+    assert task.clip_end_time == 3.5
+
+    _wait_for(client, task_id, "tracks_ready")
+    r = client.get(f"/api/r/{share_token}")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["clip_start_time"] == 1.5
+    assert body["clip_end_time"] == 3.5
 
 
 def test_frame_step_parameter(client_and_stub, tmp_path):

@@ -151,6 +151,10 @@ export type HistoryItem = {
   has_bvh: boolean;
   has_overlay: boolean;
   error: string | null;
+  detect_elapsed_sec: number | null;
+  convert_elapsed_sec: number | null;
+  clip_start_time: number;
+  clip_end_time: number;
 };
 
 export async function getHistory(): Promise<HistoryItem[]> {
@@ -171,6 +175,10 @@ export type SharedTask = {
   tracks: TrackInfo[] | null;
   detection_fps: number | null;
   total_frames: number | null;
+  detect_elapsed_sec: number | null;
+  convert_elapsed_sec: number | null;
+  clip_start_time: number;
+  clip_end_time: number;
 };
 
 export async function getSharedTask(shareToken: string): Promise<SharedTask> {

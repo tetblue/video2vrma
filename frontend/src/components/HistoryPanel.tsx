@@ -29,11 +29,27 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   error: { label: "error", color: "#c33" },
 };
 
+export type LoadTaskPayload = {
+  taskId: string;
+  fileName: string;
+  shareToken: string;
+  clipStart: number;
+  clipEnd: number;
+};
+
 type Props = {
-  onLoadTask: (taskId: string, fileName: string) => void;
+  onLoadTask: (payload: LoadTaskPayload) => void;
   currentTaskId: string | null;
   refreshKey: number;
 };
+
+function fmtElapsed(sec: number | null): string | null {
+  if (sec == null) return null;
+  if (sec < 60) return `${sec.toFixed(1)}s`;
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec - m * 60);
+  return `${m}m${s}s`;
+}
 
 export function HistoryPanel({ onLoadTask, currentTaskId, refreshKey }: Props) {
   const [items, setItems] = useState<HistoryItem[]>([]);
@@ -115,8 +131,23 @@ export function HistoryPanel({ onLoadTask, currentTaskId, refreshKey }: Props) {
             <span style={{ color: "#999", fontSize: "0.8em", whiteSpace: "nowrap" }}>
               {relativeTime(item.created_at)}
             </span>
+            {(item.detect_elapsed_sec != null || item.convert_elapsed_sec != null) && (
+              <span style={{ color: "#666", fontSize: "0.78em", whiteSpace: "nowrap" }}>
+                {item.detect_elapsed_sec != null && `detect ${fmtElapsed(item.detect_elapsed_sec)}`}
+                {item.detect_elapsed_sec != null && item.convert_elapsed_sec != null && " · "}
+                {item.convert_elapsed_sec != null && `convert ${fmtElapsed(item.convert_elapsed_sec)}`}
+              </span>
+            )}
             <button
-              onClick={() => onLoadTask(item.task_id, item.file_name)}
+              onClick={() =>
+                onLoadTask({
+                  taskId: item.task_id,
+                  fileName: item.file_name,
+                  shareToken: item.share_token,
+                  clipStart: item.clip_start_time,
+                  clipEnd: item.clip_end_time,
+                })
+              }
               disabled={isCurrent}
               style={smallBtnStyle}
             >
