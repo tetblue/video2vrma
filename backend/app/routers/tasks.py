@@ -52,7 +52,9 @@ async def post_convert(
 
     worker = request.app.state.gpu_worker
     try:
-        await worker.process_convert(task_id, body.track_id, body.fps, body.smoothing)
+        await worker.process_convert(
+            task_id, body.track_id, body.fps, body.smoothing, body.interpolate
+        )
     except KeyError:
         raise HTTPException(404, f"task {task_id} disappeared")
     except Exception as exc:

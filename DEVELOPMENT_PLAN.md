@@ -925,11 +925,11 @@ interpolation.py: axis-angle → quaternion → SLERP 補幀 → axis-angle
 輸出 N*frame_step 幀的 pose_aa，BVH 用原始 FPS 寫入
 ```
 
-- [ ] 8b.1 新建 `backend/app/services/interpolation.py`：`interpolate_pose_aa(pose_aa, factor)` 函式，對每個 joint 做 quaternion SLERP 插值，補幀 `factor` 倍
-- [ ] 8b.2 `pipeline.py`：`step2_convert` 在 smoothing 之前/之後可選呼叫 `interpolate_pose_aa`
-- [ ] 8b.3 `schemas.py`：`ConvertRequest` 新增 `interpolate: bool = False` 欄位
-- [ ] 8b.4 前端 `ConversionPanel.tsx`：新增「插值補幀」checkbox（僅在 frame_step > 1 時顯示）
-- [ ] 8b.5 `tests/`：新增插值函式的單元測試（驗證幀數倍增、quaternion 正規化）
+- [x] 8b.1 新建 `backend/app/services/interpolation.py`：`interpolate_pose_aa(pose_aa, factor)` 函式，對每個 joint 做 quaternion SLERP 插值，補幀 `factor` 倍
+- [x] 8b.2 `pipeline.py`：`step2_convert` 在 smoothing 之前/之後可選呼叫 `interpolate_pose_aa`
+- [x] 8b.3 `schemas.py`：`ConvertRequest` 新增 `interpolate: bool = False` 欄位
+- [x] 8b.4 前端 `ConversionPanel.tsx`：新增「插值補幀」checkbox（僅在 frame_step > 1 時顯示）
+- [x] 8b.5 `tests/`：新增插值函式的單元測試（驗證幀數倍增、quaternion 正規化）
 
 **驗收：**
 - 間隔取幀 + 插值後的 VRMA 時長 = 原始影片時長

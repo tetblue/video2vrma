@@ -132,6 +132,7 @@ class GPUWorker:
         track_id: int,
         fps: int,
         smoothing: bool,
+        interpolate: bool = False,
     ) -> None:
         task = self.task_manager.tasks.get(task_id)
         if task is None:
@@ -149,12 +150,15 @@ class GPUWorker:
         try:
             await loop.run_in_executor(
                 self.executor,
-                self.pipeline.step2_convert,
-                task.pkl_path,
-                bvh_path,
-                track_id,
-                fps,
-                smoothing,
+                lambda: self.pipeline.step2_convert(
+                    task.pkl_path,
+                    bvh_path,
+                    track_id,
+                    fps,
+                    smoothing,
+                    interpolate=interpolate,
+                    frame_step=task.frame_step,
+                ),
             )
         except Exception as exc:
             log.exception("convert failed for task %s", task_id)

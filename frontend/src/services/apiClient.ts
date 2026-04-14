@@ -48,6 +48,7 @@ export type ConvertRequest = {
   track_id: number;
   fps: number;
   smoothing: boolean;
+  interpolate?: boolean;
 };
 
 async function jsonOrThrow<T>(res: Response): Promise<T> {

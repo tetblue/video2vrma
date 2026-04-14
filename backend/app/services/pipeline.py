@@ -3,6 +3,7 @@ from typing import Callable
 
 from app.config import DEFAULT_END_FRAME, DEFAULT_FPS, SMPL_ROOT
 
+from .interpolation import interpolate_pose_aa
 from .phalp_service import run_phalp
 from .preview import render_overlay_video, render_skeleton_gif
 from .smoothing import smooth_pose_aa
@@ -53,10 +54,14 @@ def step2_convert(
     track_id: int,
     fps: int = DEFAULT_FPS,
     smoothing: bool = False,
+    interpolate: bool = False,
+    frame_step: int = 1,
 ) -> Path:
     pose_aa = extract_track(pkl_path, track_id)
     if smoothing:
         pose_aa = smooth_pose_aa(pose_aa)
+    if interpolate and frame_step > 1:
+        pose_aa = interpolate_pose_aa(pose_aa, factor=frame_step)
     output_bvh = Path(output_bvh).resolve()
     convert_pkl_to_bvh(
         pkl_path=pkl_path,

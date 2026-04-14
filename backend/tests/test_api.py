@@ -40,8 +40,10 @@ class StubPipeline:
             progress_cb(1.0)
         return overlay
 
-    def step2_convert(self, pkl_path, output_bvh, track_id, fps=30, smoothing=False):
-        self.convert_calls.append((str(pkl_path), int(track_id), int(fps), bool(smoothing)))
+    def step2_convert(self, pkl_path, output_bvh, track_id, fps=30, smoothing=False, interpolate=False, frame_step=1):
+        self.convert_calls.append(
+            (str(pkl_path), int(track_id), int(fps), bool(smoothing), bool(interpolate), int(frame_step))
+        )
         bvh = Path(output_bvh)
         bvh.parent.mkdir(parents=True, exist_ok=True)
         bvh.write_text("HIERARCHY\nfake bvh\n")
@@ -121,7 +123,7 @@ def test_full_flow_tracks_then_convert_then_download(client_and_stub, tmp_path):
     assert r.status_code == 200
     assert r.json()["status"] == "bvh_ready"
     assert len(stub.convert_calls) == 1
-    _, called_track, called_fps, called_smooth = stub.convert_calls[0]
+    _, called_track, called_fps, called_smooth, *_ = stub.convert_calls[0]
     assert (called_track, called_fps, called_smooth) == (1, 30, False)
 
     r = client.get(f"/api/tasks/{task_id}/download/bvh")
@@ -399,6 +401,31 @@ def test_converted_track_id_persisted(client_and_stub, tmp_path):
     # persisted on disk
     record = json.loads((tmp_path / "history" / f"{task_id}.json").read_text(encoding="utf-8"))
     assert record["converted_track_id"] == 2
+
+
+def test_convert_request_interpolate_flag_propagates(client_and_stub, tmp_path):
+    client, stub = client_and_stub
+    fake_mp4 = tmp_path / "interp.mp4"
+    fake_mp4.write_bytes(b"\x00\x00\x00\x18ftypmp42")
+    with fake_mp4.open("rb") as f:
+        r = client.post(
+            "/api/upload",
+            files={"file": ("interp.mp4", f, "video/mp4")},
+            data={"frame_step": "3"},
+            headers={"X-Client-Id": "interp-user"},
+        )
+    task_id = r.json()["task_id"]
+    _wait_for(client, task_id, "tracks_ready")
+
+    r = client.post(
+        f"/api/tasks/{task_id}/convert",
+        json={"track_id": 1, "fps": 30, "smoothing": False, "interpolate": True},
+    )
+    assert r.status_code == 200
+    # step2_convert 應收到 interpolate=True 與 frame_step=3
+    _, _, _, _, called_interp, called_step = stub.convert_calls[-1]
+    assert called_interp is True
+    assert called_step == 3
 
 
 def test_throttled_progress_callback():

@@ -5,13 +5,36 @@ import { useEffect, useState } from "react";
 type Props = {
   disabled?: boolean;
   defaultFps?: number;
-  onConvert: (opts: { fps: number; smoothing: boolean }) => void;
+  nativeFps?: number;
+  frameStep?: number;
+  onConvert: (opts: { fps: number; smoothing: boolean; interpolate: boolean }) => void;
 };
 
-export function ConversionPanel({ disabled, defaultFps = 30, onConvert }: Props) {
+export function ConversionPanel({
+  disabled,
+  defaultFps = 30,
+  nativeFps,
+  frameStep = 1,
+  onConvert,
+}: Props) {
   const [fps, setFps] = useState(defaultFps);
-  useEffect(() => { setFps(defaultFps); }, [defaultFps]);
   const [smoothing, setSmoothing] = useState(false);
+  const [interpolate, setInterpolate] = useState(false);
+  const canInterpolate = frameStep > 1;
+
+  // 勾選插值時自動把 FPS 升到原生幀率；取消時退回偵測 fps
+  useEffect(() => {
+    if (canInterpolate && interpolate && nativeFps) {
+      setFps(nativeFps);
+    } else {
+      setFps(defaultFps);
+    }
+  }, [canInterpolate, interpolate, nativeFps, defaultFps]);
+
+  // 沒跳幀時 interpolate 沒意義，強制 false
+  useEffect(() => {
+    if (!canInterpolate && interpolate) setInterpolate(false);
+  }, [canInterpolate, interpolate]);
 
   return (
     <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
@@ -37,8 +60,21 @@ export function ConversionPanel({ disabled, defaultFps = 30, onConvert }: Props)
         />
         套用 Savitzky-Golay 平滑
       </label>
+      {canInterpolate && (
+        <label style={{ fontSize: "0.9em" }}>
+          <input
+            type="checkbox"
+            checked={interpolate}
+            disabled={disabled}
+            onChange={(e) => setInterpolate(e.target.checked)}
+            style={{ marginRight: 4 }}
+          />
+          SLERP 插值補幀
+          {nativeFps ? `（→ ${nativeFps} fps）` : ""}
+        </label>
+      )}
       <button
-        onClick={() => onConvert({ fps, smoothing })}
+        onClick={() => onConvert({ fps, smoothing, interpolate: canInterpolate && interpolate })}
         disabled={disabled}
         style={{
           padding: "6px 16px",
