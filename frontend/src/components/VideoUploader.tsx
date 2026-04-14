@@ -2,6 +2,8 @@
 
 import { useCallback, useState } from "react";
 
+import { MAX_UPLOAD_BYTES, formatMaxUploadSize } from "@/lib/uploadLimits";
+
 const ALLOWED = [".mp4", ".mov", ".avi", ".mkv", ".webm"];
 
 type Props = {
@@ -20,6 +22,11 @@ export function VideoUploader({ disabled, onFileSelected }: Props) {
       const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
       if (!ALLOWED.includes(ext)) {
         setError(`不支援的格式 ${ext}`);
+        return;
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        const sizeMb = Math.round(file.size / (1024 * 1024));
+        setError(`檔案過大 (${sizeMb} MB)，上限為 ${formatMaxUploadSize()}`);
         return;
       }
       onFileSelected(file);

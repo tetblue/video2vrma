@@ -446,6 +446,64 @@ def test_throttled_progress_callback():
     assert 0.15 not in calls
 
 
+# --- Phase 6c: input validation tests ---
+
+def test_upload_rejects_oversize_content_length(client_and_stub, tmp_path, monkeypatch):
+    # 把上限暫時降到 1024 bytes，避免真的產 3 GB 檔
+    monkeypatch.setattr("app.routers.upload.MAX_UPLOAD_BYTES", 1024)
+    client, _ = client_and_stub
+    fake_mp4 = tmp_path / "big.mp4"
+    fake_mp4.write_bytes(b"\x00" * 4096)  # 4 KB，> 1024
+    with fake_mp4.open("rb") as f:
+        r = client.post(
+            "/api/upload",
+            files={"file": ("big.mp4", f, "video/mp4")},
+            # Starlette / httpx TestClient 自動帶 Content-Length
+        )
+    assert r.status_code == 413
+    assert "上限" in r.json()["detail"] or "MB" in r.json()["detail"]
+
+
+def test_upload_rejects_end_before_start(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    fake_mp4 = tmp_path / "clip.mp4"
+    fake_mp4.write_bytes(b"\x00\x00\x00\x18ftypmp42")
+    with fake_mp4.open("rb") as f:
+        r = client.post(
+            "/api/upload",
+            files={"file": ("clip.mp4", f, "video/mp4")},
+            data={"start_time": "5.0", "end_time": "2.0"},
+        )
+    assert r.status_code == 400
+    assert "end_time" in r.json()["detail"]
+
+
+def test_upload_rejects_invalid_frame_step(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    fake_mp4 = tmp_path / "step.mp4"
+    fake_mp4.write_bytes(b"\x00\x00\x00\x18ftypmp42")
+    with fake_mp4.open("rb") as f:
+        r = client.post(
+            "/api/upload",
+            files={"file": ("step.mp4", f, "video/mp4")},
+            data={"frame_step": "7"},  # 不在 {1, 3, 5} 白名單
+        )
+    assert r.status_code == 400
+    assert "frame_step" in r.json()["detail"]
+
+
+def test_convert_request_rejects_negative_track_id(client_and_stub, tmp_path):
+    client, _ = client_and_stub
+    data = _upload(client, tmp_path)
+    task_id = data["task_id"]
+    _wait_for(client, task_id, "tracks_ready")
+    r = client.post(
+        f"/api/tasks/{task_id}/convert",
+        json={"track_id": -1, "fps": 30, "smoothing": False},
+    )
+    assert r.status_code == 422  # Pydantic validation error
+
+
 def test_frame_step_parameter(client_and_stub, tmp_path):
     client, stub = client_and_stub
     fake_mp4 = tmp_path / "step.mp4"

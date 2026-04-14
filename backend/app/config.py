@@ -17,3 +17,9 @@ DEFAULT_START_FRAME = 0
 
 SMOOTHING_WINDOW = 7
 SMOOTHING_POLYORDER = 3
+
+# Phase 6c：上傳檔案大小上限（2 GB）
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024
+
+# Phase 6c：允許的 frame_step 白名單（與前端 select 選項一致）
+ALLOWED_FRAME_STEPS = (1, 3, 5)

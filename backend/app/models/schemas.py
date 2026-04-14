@@ -29,7 +29,7 @@ class TracksResponse(BaseModel):
 
 
 class ConvertRequest(BaseModel):
-    track_id: int
+    track_id: int = Field(ge=0)
     fps: int = Field(default=30, ge=1, le=240)
     smoothing: bool = False
     interpolate: bool = False
