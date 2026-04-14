@@ -975,16 +975,16 @@ interpolation.py: axis-angle → quaternion → SLERP 補幀 → axis-angle
 
 核心改動：持久化裁切資訊（clip_start_time / clip_end_time），load 時用後端 video URL 重建 clip，新增 `loadedStatus` 讓已完成 task 也能觸發 overlay URL 和 canConvert。
 
-- [ ] 9c.1 `task_manager.py`：TaskState 新增 `clip_start_time: float = 0.0`、`clip_end_time: float = 0.0`，加入 persist
-- [ ] 9c.2 `upload.py`：上傳時儲存 `task.clip_start_time` / `task.clip_end_time`（從 start_time / end_time Form 參數取得）
-- [ ] 9c.3 `schemas.py`：HistoryItem / SharedTaskResponse 新增 `clip_start_time`、`clip_end_time`
-- [ ] 9c.4 `routers/history.py`：回傳 clip_start_time / clip_end_time
-- [ ] 9c.5 `apiClient.ts`：型別更新，HistoryItem / SharedTask 加 clip time 欄位
-- [ ] 9c.6 `ReviewPanel.tsx`：`ClipInfo` 型別新增可選 `url?: string`（替代 File blob），`activeVideoSrc` 優先用 `clip.url`
-- [ ] 9c.7 `HistoryPanel.tsx`：`onLoadTask` callback 改為傳遞完整資訊（taskId, fileName, shareToken, clipStart, clipEnd）
-- [ ] 9c.8 `page.tsx`：新增 `loadedStatus` state，修改 `srcOverlayUrl` 和 `canConvert` 也看 `loadedStatus`
-- [ ] 9c.9 `page.tsx`：`onLoadTask` 完整恢復 — 設定 shareToken、用 video URL 建立 clipInfo、設定 loadedStatus、恢復 tracks/BVH/VRMA
-- [ ] 9c.10 `page.tsx`：load 後可重選 track、重新轉換（ConversionPanel 啟用）
+- [x] 9c.1 `task_manager.py`：TaskState 新增 `clip_start_time: float = 0.0`、`clip_end_time: float = 0.0`，加入 persist
+- [x] 9c.2 `upload.py`：上傳時儲存 `task.clip_start_time` / `task.clip_end_time`（從 start_time / end_time Form 參數取得）
+- [x] 9c.3 `schemas.py`：HistoryItem / SharedTaskResponse 新增 `clip_start_time`、`clip_end_time`
+- [x] 9c.4 `routers/history.py`：回傳 clip_start_time / clip_end_time
+- [x] 9c.5 `apiClient.ts`：型別更新，HistoryItem / SharedTask 加 clip time 欄位
+- [x] 9c.6 `ReviewPanel.tsx`：`ClipInfo` 型別新增可選 `url?: string`（替代 File blob），`activeVideoSrc` 優先用 `clip.url`
+- [x] 9c.7 `HistoryPanel.tsx`：`onLoadTask` callback 改為傳遞完整資訊（taskId, fileName, shareToken, clipStart, clipEnd）
+- [x] 9c.8 `page.tsx`：新增 `loadedStatus` state，修改 `srcOverlayUrl` 和 `canConvert` 也看 `loadedStatus`
+- [x] 9c.9 `page.tsx`：`onLoadTask` 完整恢復 — 設定 shareToken、用 video URL 建立 clipInfo、設定 loadedStatus、恢復 tracks/BVH/VRMA
+- [x] 9c.10 `page.tsx`：load 後可重選 track、重新轉換（ConversionPanel 啟用）
 
 **驗收：** 從 history load 任意已完成 task → 三面板同步播放（含 playhead）→ 可重選 track 重新轉換 → 下載 BVH/VRMA → 複製分享連結
 

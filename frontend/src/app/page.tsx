@@ -24,7 +24,8 @@ import { bvhTextToVrmaBlob } from "@/services/bvhToVrma";
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [clipInfo, setClipInfo] = useState<{ file: File; start: number; end: number } | null>(null);
+  const [clipInfo, setClipInfo] = useState<{ file?: File; url?: string; start: number; end: number } | null>(null);
+  const [loadedStatus, setLoadedStatus] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [shareToken, setShareToken] = useState<string | null>(null);
@@ -43,14 +44,15 @@ export default function Home() {
   const progress = useTaskProgress(taskId);
 
   const srcVideoUrl = useMemo(() => (taskId ? videoUrl(taskId) : null), [taskId]);
+  const effectiveStatus = progress.step ?? loadedStatus;
   const srcOverlayUrl = useMemo(
     () =>
       taskId &&
-      progress.step &&
-      !["queued", "detecting", "rendering_overlay"].includes(progress.step)
+      effectiveStatus &&
+      !["queued", "detecting", "rendering_overlay"].includes(effectiveStatus)
         ? overlayUrl(taskId)
         : null,
-    [taskId, progress.step],
+    [taskId, effectiveStatus],
   );
 
   const onFileSelected = useCallback((file: File) => {
@@ -64,6 +66,7 @@ export default function Home() {
     setBvhText(null);
     setVrmaBlob(null);
     setPageError(null);
+    setLoadedStatus(null);
   }, []);
 
   const onStartConvert = useCallback(
@@ -72,6 +75,7 @@ export default function Home() {
       setBusy(true);
       setPageError(null);
       setClipInfo({ file, start: startTime, end: endTime });
+      setLoadedStatus(null);
       setTracks(null);
       setSelectedTrack(null);
       setBvhText(null);
@@ -168,9 +172,19 @@ export default function Home() {
       setBvhText(null);
       setVrmaBlob(null);
       setPageError(null);
+      setLoadedStatus(null);
       setBusy(true);
       try {
         const st = await getStatus(loadTaskId);
+        setLoadedStatus(st.status);
+        // 用後端 video URL 重建 clipInfo，讓 ReviewPanel 能進同步模式
+        if (payload.clipEnd > payload.clipStart) {
+          setClipInfo({
+            url: videoUrl(loadTaskId),
+            start: payload.clipStart,
+            end: payload.clipEnd,
+          });
+        }
         if (st.status === "tracks_ready" || st.status === "bvh_ready") {
           const res = await getTracks(loadTaskId);
           setTracks(res.tracks);
@@ -228,6 +242,7 @@ export default function Home() {
     setBvhText(null);
     setVrmaBlob(null);
     setPageError(null);
+    setLoadedStatus(null);
   }, []);
 
   const onCopyShareLink = useCallback(() => {
@@ -241,7 +256,7 @@ export default function Home() {
     taskId !== null &&
     selectedTrack !== null &&
     !busy &&
-    (progress.step === "tracks_ready" || progress.step === "bvh_ready");
+    (effectiveStatus === "tracks_ready" || effectiveStatus === "bvh_ready");
 
   const trimConfig = selectedFile
     ? { file: selectedFile, disabled: busy, onStart: onStartConvert }
@@ -333,9 +348,9 @@ export default function Home() {
       {tracks && tracks.length > 0 && (
         <section style={{ marginBottom: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <ConversionPanel disabled={!canConvert} defaultFps={Math.round(detectionFps / currentFrameStep)} onConvert={onConvert} />
-          {currentFrameStep > 1 && clipInfo && (
+          {currentFrameStep > 1 && clipInfo?.file && (
             <button
-              onClick={() => onStartConvert(clipInfo.file, clipInfo.start, clipInfo.end, 1)}
+              onClick={() => onStartConvert(clipInfo.file!, clipInfo.start, clipInfo.end, 1)}
               disabled={busy}
               style={{ padding: "6px 14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: "0.85em" }}
             >

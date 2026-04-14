@@ -19,7 +19,8 @@ type TrimConfig = {
 };
 
 type ClipInfo = {
-  file: File;
+  file?: File;
+  url?: string;
   start: number;
   end: number;
 };
@@ -65,7 +66,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
     };
   }, [localUrl]);
 
-  const activeVideoSrc = localUrl ?? videoUrl;
+  const activeVideoSrc = localUrl ?? clip?.url ?? videoUrl;
   const isTrimming = !!trim;
   const clipStart = clip?.start ?? 0;
   const clipEnd = clip?.end ?? 0;
