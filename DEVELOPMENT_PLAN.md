@@ -1074,6 +1074,31 @@ interpolation.py: axis-angle → quaternion → SLERP 補幀 → axis-angle
 
 ---
 
+### Phase 12：PHALP 空偵測幀防禦檢查 + 單元測試
+
+**背景：** commit `9544ef1` 修好 `render_overlay_video` 在 `first["size"][0]` 的 `IndexError`（第一幀無偵測），但使用者提醒空幀可能出現在影片**任何位置**（開頭 / 中段 / 結尾）。審計確認所有 PHALP per-frame list 索引處都已 guard，程式碼無需額外修改；但為防未來迴歸，補上專門的單元測試覆蓋各種空幀分佈情境。
+
+**審計結果：**
+- `preview.py` L172-181（掃找非空 size）、L200-210（tid/joints guard）、L217（空幀也照寫）— ✓
+- `track_extractor.py` L19-26（`zip(tids, smpls)` + `smpl is None` skip）— ✓
+- `smoothing.py`、`smpl_to_bvh_service.py`、`pipeline.py` 不直接索引 per-frame list — ✓
+
+**Phase 12a：新增 render_overlay_video 空幀覆蓋測試**
+
+- [x] 12a.1 新增 `backend/tests/test_preview_empty_frames.py`
+- [x] 12a.2 測試 case 1：空幀散佈在前中後（e.g. 10 幀中 0、4、5、9 皆空），其餘幀有單 track → `render_overlay_video` 成功輸出 mp4
+- [x] 12a.3 測試 case 2：僅某一幀（非第一幀）有偵測 → 驗證掃找機制能找到任意位置的非空幀
+- [x] 12a.4 測試 case 3：全部幀皆空 → 應拋 `RuntimeError("no tracks in PHALP pkl")`，不是 `IndexError`
+- [x] 12a.5 用 `monkeypatch` 把 `_reencode_h264` 替換成 src→dst copy，避免測試依賴 ffmpeg
+- [x] 12a.6 以 `joblib.dump` 寫臨時 fake pkl（3×8×8 的假圖 + 對應 `frame_path`）
+
+**驗收：**
+- `pytest backend/tests/test_preview_empty_frames.py -v` 3 cases 全通過
+- `pytest backend/tests/ -q` 既有 22 + 新 3 = 25 tests 通過
+- 未來若有人改回不安全的 `first["size"][0]` 直接索引，測試會擋住
+
+---
+
 ## CLAUDE.md 概要
 
 > 實際 CLAUDE.md 在專案根目錄，以下為概要摘錄。
