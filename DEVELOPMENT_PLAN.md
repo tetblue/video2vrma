@@ -1055,16 +1055,16 @@ interpolation.py: axis-angle → quaternion → SLERP 補幀 → axis-angle
 
 **Phase 11b：前端 VRMA 中心 loop + reload 還原 track**
 
-- [ ] 11b.1 `apiClient.ts`：`HistoryItem` / `SharedTask` 型別加 `converted_track_id: number | null`
-- [ ] 11b.2 `HistoryPanel.tsx`：`LoadTaskPayload` 新增 `convertedTrackId: number | null`，`onLoadTask` 呼叫時帶入
-- [ ] 11b.3 `VrmPreview.tsx`：新增 `onReady?: (duration: number) => void` prop，在 VRMA clip 載入後呼叫（之後 clip 換新時也要呼叫）
-- [ ] 11b.4 `page.tsx`：新增 `convertedTrackId` state；upload 流程的 `onConvert` 成功後設為 `selectedTrack`；`onLoadTask` 設為 `payload.convertedTrackId`（若非 null），並將 `selectedTrack` 預設也設成它
-- [ ] 11b.5 `page.tsx`：`trackTiming` 改由 `convertedTrackId` 查 `tracks` 產生（而非 `selectedTrack`），讓 VRM 時間永遠對應到 VRMA 內容
-- [ ] 11b.6 `ReviewPanel.tsx`：新增 `vrmaDuration` state，透過傳下 `onVrmReady` 給 `VrmPreview` 的 `onReady` 更新
-- [ ] 11b.7 `ReviewPanel.tsx`：同步播放模式下，把 loop 範圍從 `[clipStart, clipEnd]` 改為 `[clipStart + trackOffsetTime, clipStart + trackOffsetTime + vrmaDuration]`；對應 overlay loop 為 `[trackOffsetTime, trackOffsetTime + vrmaDuration]`
-- [ ] 11b.8 `ReviewPanel.tsx`：`onVideoLoaded`、`syncPlay`、`syncReset`、tick loop 的邊界判斷全部用新的 loopStart/loopEnd；初始化 `v.currentTime = loopStart` 而非 clipStart
-- [ ] 11b.9 `ReviewPanel.tsx`：當 `vrmaBlob` 切換（re-convert 完成）→ useEffect 偵測 `vrmaDuration` 變更 → 若正在播放且 `v.currentTime` 超出新 loop，seek 回新 loopStart
-- [ ] 11b.10 `ReviewPanel.tsx`：PlaybackBar 的 `duration` / `currentTime` 改用 loop 範圍（`loopEnd - loopStart`、`videoCurrentTime - loopStart`），讓拖拉也限制在 VRM 有效視窗內
+- [x] 11b.1 `apiClient.ts`：`HistoryItem` / `SharedTask` 型別加 `converted_track_id: number | null`
+- [x] 11b.2 `HistoryPanel.tsx`：`LoadTaskPayload` 新增 `convertedTrackId: number | null`，`onLoadTask` 呼叫時帶入
+- [x] 11b.3 `VrmPreview.tsx`：新增 `onReady?: (duration: number) => void` prop，在 VRMA clip 載入後呼叫（之後 clip 換新時也要呼叫）
+- [x] 11b.4 `page.tsx`：新增 `convertedTrackId` state；upload 流程的 `onConvert` 成功後設為 `selectedTrack`；`onLoadTask` 設為 `payload.convertedTrackId`（若非 null），並將 `selectedTrack` 預設也設成它
+- [x] 11b.5 `page.tsx`：`trackTiming` 改由 `convertedTrackId` 查 `tracks` 產生（而非 `selectedTrack`），讓 VRM 時間永遠對應到 VRMA 內容
+- [x] 11b.6 `ReviewPanel.tsx`：新增 `vrmaDuration` state，透過傳下 `onVrmReady` 給 `VrmPreview` 的 `onReady` 更新
+- [x] 11b.7 `ReviewPanel.tsx`：同步播放模式下，把 loop 範圍從 `[clipStart, clipEnd]` 改為 `[clipStart + trackOffsetTime, clipStart + trackOffsetTime + vrmaDuration]`；對應 overlay loop 為 `[trackOffsetTime, trackOffsetTime + vrmaDuration]`
+- [x] 11b.8 `ReviewPanel.tsx`：`onVideoLoaded`、`syncPlay`、`syncReset`、tick loop 的邊界判斷全部用新的 loopStart/loopEnd；初始化 `v.currentTime = loopStart` 而非 clipStart
+- [x] 11b.9 `ReviewPanel.tsx`：當 `vrmaBlob` 切換（re-convert 完成）→ useEffect 偵測 `vrmaDuration` 變更 → 若正在播放且 `v.currentTime` 超出新 loop，seek 回新 loopStart
+- [x] 11b.10 `ReviewPanel.tsx`：PlaybackBar 的 `duration` / `currentTime` 改用 loop 範圍（`loopEnd - loopStart`、`videoCurrentTime - loopStart`），讓拖拉也限制在 VRM 有效視窗內
 
 **驗收：**
 - 多 track 影片選任一 track 轉換 → 按同步播放 → 三面板在 VRM 有效視窗內同步、VRM 全程都在動、沒有凍結

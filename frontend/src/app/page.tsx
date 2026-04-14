@@ -33,6 +33,7 @@ export default function Home() {
   const [detectionFps, setDetectionFps] = useState(30);
   const [totalFrames, setTotalFrames] = useState(0);
   const [selectedTrack, setSelectedTrack] = useState<number | null>(null);
+  const [convertedTrackId, setConvertedTrackId] = useState<number | null>(null);
   const [bvhText, setBvhText] = useState<string | null>(null);
   const [vrmaBlob, setVrmaBlob] = useState<Blob | null>(null);
   const [frameStep, setFrameStep] = useState(1);
@@ -62,7 +63,7 @@ export default function Home() {
     setFileName(null);
     setShareToken(null);
     setTracks(null);
-    setSelectedTrack(null);
+    setSelectedTrack(null); setConvertedTrackId(null);
     setBvhText(null);
     setVrmaBlob(null);
     setPageError(null);
@@ -77,7 +78,7 @@ export default function Home() {
       setClipInfo({ file, start: startTime, end: endTime });
       setLoadedStatus(null);
       setTracks(null);
-      setSelectedTrack(null);
+      setSelectedTrack(null); setConvertedTrackId(null);
       setBvhText(null);
       setVrmaBlob(null);
       try {
@@ -128,6 +129,8 @@ export default function Home() {
         const blob = await bvhTextToVrmaBlob(bvh, { scale: 0.01 });
         if (!cancelled) {
           setVrmaBlob(blob);
+          // 剛轉換完成的 VRMA 對應的就是當前 selectedTrack
+          if (selectedTrack != null) setConvertedTrackId(selectedTrack);
           setHistoryKey((k) => k + 1);
         }
       } catch (e) {
@@ -137,7 +140,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [taskId, progress.step, vrmaBlob]);
+  }, [taskId, progress.step, vrmaBlob, selectedTrack]);
 
   const onConvert = useCallback(
     async ({ fps, smoothing }: { fps: number; smoothing: boolean }) => {
@@ -168,7 +171,7 @@ export default function Home() {
       setFileName(loadFileName);
       setShareToken(payload.shareToken || null);
       setTracks(null);
-      setSelectedTrack(null);
+      setSelectedTrack(null); setConvertedTrackId(null);
       setBvhText(null);
       setVrmaBlob(null);
       setPageError(null);
@@ -191,13 +194,20 @@ export default function Home() {
           setDetectionFps(res.detection_fps);
           setTotalFrames(res.total_frames);
           setCurrentFrameStep(res.frame_step ?? 1);
-          if (res.tracks.length > 0) setSelectedTrack(res.tracks[0].track_id);
+          // 優先用原轉換的 track_id，否則 fallback 到第一個
+          const preferredId = payload.convertedTrackId;
+          const initialId =
+            preferredId != null && res.tracks.some((t) => t.track_id === preferredId)
+              ? preferredId
+              : res.tracks[0]?.track_id ?? null;
+          if (initialId != null) setSelectedTrack(initialId);
         }
         if (st.status === "bvh_ready") {
           const bvh = await downloadBvhText(loadTaskId);
           setBvhText(bvh);
           const blob = await bvhTextToVrmaBlob(bvh, { scale: 0.01 });
           setVrmaBlob(blob);
+          if (payload.convertedTrackId != null) setConvertedTrackId(payload.convertedTrackId);
         }
       } catch (e) {
         setPageError(String(e));
@@ -238,7 +248,7 @@ export default function Home() {
     setFileName(null);
     setShareToken(null);
     setTracks(null);
-    setSelectedTrack(null);
+    setSelectedTrack(null); setConvertedTrackId(null);
     setBvhText(null);
     setVrmaBlob(null);
     setPageError(null);
@@ -262,10 +272,13 @@ export default function Home() {
     ? { file: selectedFile, disabled: busy, onStart: onStartConvert }
     : null;
 
-  const selectedTrackInfo = tracks?.find((t) => t.track_id === selectedTrack);
-  const trackTiming = selectedTrackInfo
+  // trackTiming 對應 VRMA 實際內容的 track（convertedTrackId）。若尚未轉換，
+  // 退回 selectedTrack 讓 preview 先顯示選中 track 的範圍提示。
+  const timingTrackId = convertedTrackId ?? selectedTrack;
+  const timingTrackInfo = tracks?.find((t) => t.track_id === timingTrackId);
+  const trackTiming = timingTrackInfo
     ? {
-        startFrame: selectedTrackInfo.start_frame,
+        startFrame: timingTrackInfo.start_frame,
         totalFrames,
         detectionFps,
       }

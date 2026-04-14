@@ -35,6 +35,7 @@ export type LoadTaskPayload = {
   shareToken: string;
   clipStart: number;
   clipEnd: number;
+  convertedTrackId: number | null;
 };
 
 type Props = {
@@ -146,6 +147,7 @@ export function HistoryPanel({ onLoadTask, currentTaskId, refreshKey }: Props) {
                   shareToken: item.share_token,
                   clipStart: item.clip_start_time,
                   clipEnd: item.clip_end_time,
+                  convertedTrackId: item.converted_track_id,
                 })
               }
               disabled={isCurrent}

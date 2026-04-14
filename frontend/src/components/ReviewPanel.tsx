@@ -53,7 +53,16 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
   const [currentTime, setCurrentTime] = useState(0);
   const [overlayDuration, setOverlayDuration] = useState(0);
   const [overlayCurrentTime, setOverlayCurrentTime] = useState(0);
+  const [vrmaDuration, setVrmaDuration] = useState(0);
   const rafRef = useRef<number>(0);
+
+  const onVrmReady = useCallback((d: number) => setVrmaDuration(d), []);
+
+  // vrmaBlob 清空（例如 re-convert 過程中）時，vrmaDuration 也要重置，
+  // 避免用上一個 VRMA 的 duration 計算 loop 範圍。
+  useEffect(() => {
+    if (!vrmaBlob) setVrmaDuration(0);
+  }, [vrmaBlob]);
 
   const localFile = trim?.file ?? clip?.file ?? null;
   const localUrl = useMemo(
@@ -81,6 +90,35 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
     ? trackTiming.startFrame / trackTiming.detectionFps
     : 0;
 
+  // 同步播放時的 VRMA 有效視窗（以 video 絕對時間表示）：
+  // [clipStart + trackOffsetTime, clipStart + trackOffsetTime + vrmaDuration]
+  // 若 vrmaDuration 為 0（VRMA 未載入），退回 [clipStart, clipEnd]
+  const syncVideoStart = clipStart + trackOffsetTime;
+  const syncVideoEnd = vrmaDuration > 0
+    ? Math.min(syncVideoStart + vrmaDuration, clipEnd || Infinity)
+    : clipEnd;
+  const syncOverlayStart = trackOffsetTime;
+  const syncOverlayEnd = vrmaDuration > 0
+    ? syncOverlayStart + vrmaDuration
+    : (overlayDuration || syncOverlayStart);
+
+  // 新 VRMA 載入（vrmaDuration 變更）後：若 video 位置已經不在新視窗內，
+  // seek 回新視窗起點；VRM 也對齊。
+  useEffect(() => {
+    if (!isSyncWithClip || vrmaDuration <= 0) return;
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.currentTime < syncVideoStart || v.currentTime >= syncVideoEnd) {
+      v.currentTime = syncVideoStart;
+      setCurrentTime(syncVideoStart);
+      if (overlayRef.current) {
+        overlayRef.current.currentTime = syncOverlayStart;
+        setOverlayCurrentTime(syncOverlayStart);
+      }
+      vrmRef.current?.setTime(0);
+    }
+  }, [isSyncWithClip, vrmaDuration, syncVideoStart, syncVideoEnd, syncOverlayStart]);
+
   const onVideoLoaded = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -90,26 +128,41 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
       setStartTime(0);
       setEndTime(dur);
       setCurrentTime(0);
-    } else if (isClipping || isSyncWithClip) {
+    } else if (isSyncWithClip) {
+      v.currentTime = syncVideoStart;
+      setCurrentTime(syncVideoStart);
+    } else if (isClipping) {
       v.currentTime = clipStart;
       setCurrentTime(clipStart);
     }
-  }, [isTrimming, isClipping, isSyncWithClip, clipStart]);
+  }, [isTrimming, isClipping, isSyncWithClip, clipStart, syncVideoStart]);
 
   useEffect(() => {
     if (!isTrimming && !isClipping && !isSyncWithClip) return;
     const v = videoRef.current;
     if (!v) return;
-    const loopStart = isTrimming ? startTime : clipStart;
-    const loopEnd = isTrimming ? endTime : clipEnd;
+    // 同步模式下 loop 縮到 VRMA 有效視窗；trim / clip-only 維持原本
+    let loopStart: number;
+    let loopEnd: number;
+    if (isTrimming) {
+      loopStart = startTime;
+      loopEnd = endTime;
+    } else if (isSyncWithClip) {
+      loopStart = syncVideoStart;
+      loopEnd = syncVideoEnd;
+    } else {
+      loopStart = clipStart;
+      loopEnd = clipEnd;
+    }
     const tick = () => {
       setCurrentTime(v.currentTime);
       if (playing && v.currentTime >= loopEnd) {
         v.currentTime = loopStart;
-        // 同步模式下 overlay / VRM 也要回到開頭
+        // 同步模式下 overlay / VRM 也要回到視窗起點
         if (isSyncWithClip) {
-          if (overlayRef.current) overlayRef.current.currentTime = 0;
+          if (overlayRef.current) overlayRef.current.currentTime = syncOverlayStart;
           overlayRef.current?.play();
+          vrmRef.current?.setTime(0);
         }
       }
       // 同步模式下每幀精確同步 VRM 時間（考慮 track offset），並更新 overlay playhead
@@ -125,7 +178,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [isTrimming, isClipping, isSyncWithClip, playing, startTime, endTime, clipStart, clipEnd, trackOffsetTime]);
+  }, [isTrimming, isClipping, isSyncWithClip, playing, startTime, endTime, clipStart, clipEnd, syncVideoStart, syncVideoEnd, syncOverlayStart, trackOffsetTime]);
 
   const syncPlay = useCallback(() => {
     if (isTrimming || isClipping) {
@@ -138,15 +191,21 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
       }
       v.play();
     } else if (isSyncWithClip) {
-      // 三窗格同步 + 原始影片 loop clip 範圍
+      // 三窗格同步 + loop VRMA 視窗（clipStart+trackOffset..+vrmaDuration）
       const v = videoRef.current;
       if (v) {
-        if (v.currentTime < clipStart || v.currentTime >= clipEnd) {
-          v.currentTime = clipStart;
+        if (v.currentTime < syncVideoStart || v.currentTime >= syncVideoEnd) {
+          v.currentTime = syncVideoStart;
         }
         v.play();
       }
-      overlayRef.current?.play();
+      const ov = overlayRef.current;
+      if (ov) {
+        if (ov.currentTime < syncOverlayStart || ov.currentTime >= syncOverlayEnd) {
+          ov.currentTime = syncOverlayStart;
+        }
+        ov.play();
+      }
       vrmRef.current?.play();
     } else {
       videoRef.current?.play();
@@ -154,7 +213,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
       vrmRef.current?.play();
     }
     setPlaying(true);
-  }, [isTrimming, isClipping, isSyncWithClip, startTime, endTime, clipStart, clipEnd]);
+  }, [isTrimming, isClipping, isSyncWithClip, startTime, endTime, clipStart, clipEnd, syncVideoStart, syncVideoEnd, syncOverlayStart, syncOverlayEnd]);
 
   const syncPause = useCallback(() => {
     videoRef.current?.pause();
@@ -166,20 +225,26 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
   }, [isTrimming, isClipping, isSyncWithClip]);
 
   const syncReset = useCallback(() => {
-    const resetTo = isTrimming ? startTime : (isClipping || isSyncWithClip) ? clipStart : 0;
+    const videoResetTo = isTrimming
+      ? startTime
+      : isSyncWithClip
+        ? syncVideoStart
+        : isClipping
+          ? clipStart
+          : 0;
     if (videoRef.current) {
       videoRef.current.pause();
-      videoRef.current.currentTime = resetTo;
+      videoRef.current.currentTime = videoResetTo;
     }
     if (!isTrimming && !isClipping) {
       if (overlayRef.current) {
         overlayRef.current.pause();
-        overlayRef.current.currentTime = 0;
+        overlayRef.current.currentTime = isSyncWithClip ? syncOverlayStart : 0;
       }
       vrmRef.current?.reset();
     }
     setPlaying(false);
-  }, [isTrimming, isClipping, isSyncWithClip, startTime, clipStart, trackOffsetTime]);
+  }, [isTrimming, isClipping, isSyncWithClip, startTime, clipStart, syncVideoStart, syncOverlayStart]);
 
   const onVideoEnded = useCallback(() => {
     syncPause();
@@ -221,43 +286,52 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
 
   const onVideoSeek = useCallback(
     (localT: number) => {
-      // localT 是 playhead 上的相對秒數（0 ~ clipEnd-clipStart）
+      // 同步模式下 localT 是 VRMA 視窗相對秒數（0 ~ vrmaDuration），
+      // 否則是 clip 相對秒數（0 ~ clipEnd-clipStart）
       const v = videoRef.current;
       if (!v) return;
-      const absT = clipStart + localT;
+      const videoBase = isSyncWithClip && vrmaDuration > 0 ? syncVideoStart : clipStart;
+      const overlayBase = isSyncWithClip && vrmaDuration > 0 ? syncOverlayStart : 0;
+      const absT = videoBase + localT;
       v.currentTime = absT;
       setCurrentTime(absT);
-      // 反向同步 overlay 與 VRM（若存在）
       const ov = overlayRef.current;
       if (ov) {
-        ov.currentTime = localT;
-        setOverlayCurrentTime(localT);
+        const ovT = overlayBase + localT;
+        ov.currentTime = ovT;
+        setOverlayCurrentTime(ovT);
       }
       if (vrmaBlob) {
-        vrmRef.current?.setTime(localT - trackOffsetTime);
+        vrmRef.current?.setTime(localT);
       }
     },
-    [clipStart, vrmaBlob, trackOffsetTime],
+    [isSyncWithClip, vrmaDuration, syncVideoStart, syncOverlayStart, clipStart, vrmaBlob],
   );
 
   const onOverlaySeek = useCallback(
-    (t: number) => {
+    (localT: number) => {
+      // 同步模式下 localT 是 VRMA 視窗相對秒數（0 ~ vrmaDuration），
+      // 否則是 overlay 絕對秒數
       const ov = overlayRef.current;
       if (!ov) return;
-      ov.currentTime = t;
-      setOverlayCurrentTime(t);
-      // 反向同步原始影片（若有 clip 範圍）
+      const overlayBase = isSyncWithClip && vrmaDuration > 0 ? syncOverlayStart : 0;
+      const videoBase = isSyncWithClip && vrmaDuration > 0 ? syncVideoStart : clipStart;
+      const ovT = overlayBase + localT;
+      ov.currentTime = ovT;
+      setOverlayCurrentTime(ovT);
       const v = videoRef.current;
       if (v && clip) {
-        const absT = clipStart + t;
+        const absT = videoBase + localT;
         v.currentTime = absT;
         setCurrentTime(absT);
       }
       if (vrmaBlob) {
-        vrmRef.current?.setTime(t - trackOffsetTime);
+        // 在同步窗內 localT 即是 vrmT；非同步模式退回原 offset 邏輯
+        const vrmT = isSyncWithClip && vrmaDuration > 0 ? localT : localT - trackOffsetTime;
+        vrmRef.current?.setTime(vrmT);
       }
     },
-    [clip, clipStart, vrmaBlob, trackOffsetTime],
+    [isSyncWithClip, vrmaDuration, syncOverlayStart, syncVideoStart, clip, clipStart, vrmaBlob, trackOffsetTime],
   );
 
   const segmentDuration = Math.max(0, endTime - startTime);
@@ -325,12 +399,20 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
                   onSeek={onSeek}
                 />
               )}
-              {!isTrimming && clip && overlayUrl && clipEnd > clipStart && (
-                <PlaybackBar
-                  duration={clipEnd - clipStart}
-                  currentTime={Math.max(0, currentTime - clipStart)}
-                  onSeek={onVideoSeek}
-                />
+              {!isTrimming && clip && overlayUrl && (
+                isSyncWithClip && vrmaDuration > 0 ? (
+                  <PlaybackBar
+                    duration={syncVideoEnd - syncVideoStart}
+                    currentTime={Math.max(0, Math.min(currentTime - syncVideoStart, syncVideoEnd - syncVideoStart))}
+                    onSeek={onVideoSeek}
+                  />
+                ) : clipEnd > clipStart ? (
+                  <PlaybackBar
+                    duration={clipEnd - clipStart}
+                    currentTime={Math.max(0, currentTime - clipStart)}
+                    onSeek={onVideoSeek}
+                  />
+                ) : null
               )}
             </>
           ) : (
@@ -353,11 +435,19 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
                 style={mediaStyle}
               />
               {overlayDuration > 0 && (
-                <PlaybackBar
-                  duration={overlayDuration}
-                  currentTime={overlayCurrentTime}
-                  onSeek={onOverlaySeek}
-                />
+                isSyncWithClip && vrmaDuration > 0 ? (
+                  <PlaybackBar
+                    duration={syncOverlayEnd - syncOverlayStart}
+                    currentTime={Math.max(0, Math.min(overlayCurrentTime - syncOverlayStart, syncOverlayEnd - syncOverlayStart))}
+                    onSeek={onOverlaySeek}
+                  />
+                ) : (
+                  <PlaybackBar
+                    duration={overlayDuration}
+                    currentTime={overlayCurrentTime}
+                    onSeek={onOverlaySeek}
+                  />
+                )
               )}
             </>
           ) : (
@@ -372,6 +462,7 @@ export function ReviewPanel({ videoUrl, overlayUrl, vrmaBlob, vrmUrl, trim, clip
             vrmUrl={vrmUrl}
             vrmaBlob={vrmaBlob}
             autoPlay={false}
+            onReady={onVrmReady}
           />
         </div>
       </div>

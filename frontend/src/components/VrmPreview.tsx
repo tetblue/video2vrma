@@ -23,10 +23,11 @@ type Props = {
   vrmUrl: string;
   vrmaBlob: Blob | null;
   autoPlay?: boolean;
+  onReady?: (duration: number) => void;
 };
 
 export const VrmPreview = forwardRef<VrmPreviewHandle, Props>(function VrmPreview(
-  { vrmUrl, vrmaBlob, autoPlay = true },
+  { vrmUrl, vrmaBlob, autoPlay = true, onReady },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -43,6 +44,11 @@ export const VrmPreview = forwardRef<VrmPreviewHandle, Props>(function VrmPrevie
 
   const [vrm, setVrm] = useState<VRM | null>(null);
   const [status, setStatus] = useState<string>("初始化中");
+
+  const onReadyRef = useRef(onReady);
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   const _startFresh = () => {
     const currentVrm = vrmRef.current;
@@ -223,6 +229,7 @@ export const VrmPreview = forwardRef<VrmPreviewHandle, Props>(function VrmPrevie
         }
         clipRef.current = clip;
         durationRef.current = clip.duration;
+        onReadyRef.current?.(clip.duration);
 
         if (autoPlay) {
           _startFresh();

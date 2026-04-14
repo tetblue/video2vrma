@@ -155,6 +155,7 @@ export type HistoryItem = {
   convert_elapsed_sec: number | null;
   clip_start_time: number;
   clip_end_time: number;
+  converted_track_id: number | null;
 };
 
 export async function getHistory(): Promise<HistoryItem[]> {
@@ -179,6 +180,7 @@ export type SharedTask = {
   convert_elapsed_sec: number | null;
   clip_start_time: number;
   clip_end_time: number;
+  converted_track_id: number | null;
 };
 
 export async function getSharedTask(shareToken: string): Promise<SharedTask> {
