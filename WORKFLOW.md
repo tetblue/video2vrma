@@ -324,6 +324,7 @@ AI 看見過往教訓，行為調整
 - `0004` — sm_120 wheel 相容性
 - `0005` — vendor/ 只讀時用 sys.modules stub + monkey-patch 繞 import side-effect
 - `0006` — PHALP→BVH→VRMA→VRM 跨階段座標系與 rig 陷阱
+- `0007` — PHALP 任何幀都可能沒偵測到人，索引 per-frame list 前要 guard
 
 詳見 `.claude/lessons/` 各檔。
 

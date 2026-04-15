@@ -86,45 +86,54 @@ video2vrma/
 │   └── iopath_cache/detectron2/ ViTDet + mask_rcnn 權重（env FVCORE_CACHE）
 ├── backend/                   FastAPI
 │   ├── app/
-│   │   ├── main.py            create_app + lifespan + lazy `app` 屬性
-│   │   ├── config.py          路徑常數 + 預設參數（FPS / end_frame / smoothing）
+│   │   ├── main.py            create_app + lifespan + _configure_logging (RotatingFileHandler)
+│   │   ├── config.py          路徑常數 + 預設參數 + MAX_UPLOAD_BYTES + LOG_DIR + ALLOWED_FRAME_STEPS
 │   │   ├── core/
-│   │   │   ├── task_manager.py  TaskState + TaskStep + queue + WS subscribers
-│   │   │   └── gpu_worker.py    背景 worker：detect 走 queue，convert 由路由直呼
-│   │   ├── models/schemas.py  Pydantic request/response
+│   │   │   ├── task_manager.py  TaskState + TaskStep + queue + WS subscribers + history persist
+│   │   │   └── gpu_worker.py    背景 worker：detect 走 queue，convert 由路由直呼 + 真實進度回報
+│   │   ├── models/schemas.py  Pydantic request/response（含 HistoryItem / SharedTaskResponse）
 │   │   ├── routers/
-│   │   │   ├── upload.py       POST /api/upload
-│   │   │   ├── tasks.py        GET status/tracks/download/video/overlay + POST convert + WS
-│   │   │   └── system.py       GET /api/system/stats（CPU / GPU / 佇列）
+│   │   │   ├── upload.py       POST /api/upload（檔案大小 / 時間範圍 / frame_step 驗證）
+│   │   │   ├── tasks.py        GET status/tracks/download/video/overlay + POST convert + DELETE + WS
+│   │   │   ├── history.py      GET /api/history（依 X-Client-Id）+ GET /api/r/{share_token}
+│   │   │   └── system.py       GET /api/system/stats（CPU / GPU / 佇列 + queued_tasks 清單）
 │   │   └── services/          pipeline adapter 層
 │   │       ├── vendor_paths.py        HOME / FVCORE_CACHE override + stub / patch
-│   │       ├── phalp_service.py       PHALP tracker 包裝
+│   │       ├── phalp_service.py       PHALP tracker 包裝（_cached_tracker + tqdm 進度橋接）
 │   │       ├── track_extractor.py     PHALP pkl → pose_aa (n,24,3)，cam→VRM 翻轉
 │   │       ├── smoothing.py           Savitzky-Golay 平滑（rotmat 空間 + SVD 投影）
+│   │       ├── interpolation.py       quaternion SLERP 插值補幀（搭配 frame_step 回復原生 FPS）
 │   │       ├── smpl_to_bvh_service.py pose_aa → BVH via smpl2bvh
-│   │       ├── preview.py             骨架 3D GIF + 2D overlay mp4（多 track 彩色 + ID 標籤）
-│   │       └── pipeline.py            run_e2e + step1_detect/step2_convert
+│   │       ├── preview.py             骨架 3D GIF + 2D overlay mp4（多 track 彩色 + ID + _throttled 進度）
+│   │       └── pipeline.py            run_e2e + step1_detect / step1b_overlay / step2_convert
 │   ├── scripts/test_e2e.py    端到端 CLI
 │   ├── pytest.ini             asyncio_mode=auto
 │   └── tests/                 pytest 單元測試（含 FastAPI TestClient + stub pipeline）
 ├── frontend/                  Next.js 13.4 (app router)
-│   ├── src/app/page.tsx       Phase 5 完整流程頁：upload → progress → tracks → convert → preview
+│   ├── src/app/page.tsx       完整流程頁：upload → progress → tracks → convert → preview
+│   ├── src/app/r/[token]/     公開分享頁（唯讀檢視 + 下載）
 │   ├── src/components/
-│   │   ├── VideoUploader.tsx       檔案選擇（不自動上傳）
+│   │   ├── VideoUploader.tsx       檔案選擇（副檔名 + 大小上限本地檢查）
 │   │   ├── TrimSlider.tsx         range slider + playhead 裁切控制項
-│   │   ├── ProgressDisplay.tsx     5 階段步驟條 + progress bar
+│   │   ├── ProgressDisplay.tsx     5 階段步驟條 + 真實進度百分比 + 耗時計時
 │   │   ├── TrackSelector.tsx       PHALP track 選擇
-│   │   ├── ConversionPanel.tsx     fps + smoothing + 觸發 convert
+│   │   ├── ConversionPanel.tsx     fps + smoothing + interpolate + 觸發 convert
 │   │   ├── VrmPreview.tsx          three + @pixiv/three-vrm 預覽器
-│   │   ├── ReviewPanel.tsx         三欄同步預覽（原始影片 / overlay / VRM）+ 裁切 loop
-│   │   └── SystemStats.tsx         CPU / GPU / 佇列即時監控
+│   │   ├── ReviewPanel.tsx         三欄同步預覽（影片 / overlay / VRM）+ PlaybackBar 雙向同步
+│   │   ├── PlaybackBar.tsx         加粗 + thumb + pointer drag 的 playhead
+│   │   ├── HistoryPanel.tsx        使用者歷史清單（load / share / delete）
+│   │   ├── ErrorBanner.tsx         統一錯誤/資訊橫幅（可 dismiss / 自動消失）
+│   │   └── SystemStats.tsx         CPU / GPU / 佇列 + 排隊列表（自己高亮）
 │   ├── src/hooks/useTaskProgress.ts  WebSocket 訂閱 /api/ws/tasks/{id}
 │   ├── src/services/
-│   │   ├── apiClient.ts            fetch wrapper（NEXT_PUBLIC_API_BASE）
+│   │   ├── apiClient.ts            fetch wrapper（NEXT_PUBLIC_API_BASE + X-Client-Id header）
 │   │   └── bvhToVrma.ts            bvhText → vrma blob adapter
-│   ├── src/lib/bvh2vrma/      vendor/bvh2vrma/src/lib/bvh-converter 5 檔 copy
+│   ├── src/lib/
+│   │   ├── bvh2vrma/              vendor/bvh2vrma/src/lib/bvh-converter 5 檔 copy
+│   │   ├── clientId.ts            localStorage UUID 管理
+│   │   └── uploadLimits.ts        上傳大小上限常數（與後端 MAX_UPLOAD_BYTES 同步）
 │   └── public/models/default.vrm  預設 VRM 模型
-└── tmp/                       暫存（不進 git）
+└── tmp/                       暫存（uploads / tasks / history / logs，不進 git）
 ```
 
 ## 常用指令
